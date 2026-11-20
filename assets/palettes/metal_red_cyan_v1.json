@@ -1,0 +1,23 @@
+{
+  "palette_id": "metal_red_cyan_v1",
+  "version": 1,
+  "description": "Shared baseline 16-entry editable art palette (Sprite Production Guide §1). Hardware Neo Geo 16-bit palette words are emitted deterministically during export.",
+  "entries": [
+    {"index": 0,  "hex": null,      "transparent": true,  "role": "transparent"},
+    {"index": 1,  "hex": "#161923", "transparent": false, "role": "outline"},
+    {"index": 2,  "hex": "#313543", "transparent": false, "role": "deep_metal_shade"},
+    {"index": 3,  "hex": "#5C6375", "transparent": false, "role": "steel_midtone"},
+    {"index": 4,  "hex": "#A6B0C0", "transparent": false, "role": "steel_light"},
+    {"index": 5,  "hex": "#F3F0D6", "transparent": false, "role": "cream_highlight"},
+    {"index": 6,  "hex": "#6F411E", "transparent": false, "role": "brass_shadow"},
+    {"index": 7,  "hex": "#BA7B27", "transparent": false, "role": "brass"},
+    {"index": 8,  "hex": "#F0C451", "transparent": false, "role": "gold_highlight"},
+    {"index": 9,  "hex": "#7C1730", "transparent": false, "role": "red_shadow"},
+    {"index": 10, "hex": "#D82C42", "transparent": false, "role": "red"},
+    {"index": 11, "hex": "#FF6470", "transparent": false, "role": "red_highlight"},
+    {"index": 12, "hex": "#176779", "transparent": false, "role": "cyan_shadow"},
+    {"index": 13, "hex": "#61CCD4", "transparent": false, "role": "cyan"},
+    {"index": 14, "hex": "#B6F1E8", "transparent": false, "role": "cyan_highlight"},
+    {"index": 15, "hex": "#EE7A25", "transparent": false, "role": "orange_accent"}
+  ]
+}

@@ -1,0 +1,27 @@
+# Build and distribution artifacts
+/build/*
+!/build/.gitkeep
+/dist/*
+!/dist/.gitkeep
+
+# Local MAME runtime / BIOS / NVRAM directories (never bundle third-party BIOS ROMs)
+/mame/roms/
+/mame/nvram/
+/mame/cfg/
+/mame/sta/
+/mame/snap/
+/mame/diff/
+/mame/inp/
+neogeo.zip
+*.nv
+
+# Python cache and virtualenvs
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# OS / editor artifacts
+.DS_Store
+*.swp
+*~
