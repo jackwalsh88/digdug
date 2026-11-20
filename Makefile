@@ -6,13 +6,18 @@
 PYTHON ?= python3
 SDD    := $(PYTHON) tools/sdd.py
 
-.PHONY: help status assets asset-check asset-preview art-viewer rom test run debug budgets package clean
+ROM    ?= digdug.zip
+
+.PHONY: help status disasm assets asset-check asset-preview art-viewer rom test run debug budgets package clean
 
 help:
 	@$(SDD) --help
 
 status:
 	@$(SDD) status
+
+disasm:
+	@$(SDD) disasm --rom "$(ROM)"
 
 assets:
 	@$(SDD) assets
