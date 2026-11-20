@@ -4,10 +4,14 @@ Records confirmed constraints from the specifications alongside reversible engin
 
 ---
 
-## 1. Locked Platform & Gameplay Rules (Authority: Handoff §1–§3)
+## 1. Locked Platform, Phasing & Gameplay Rules (Authority: User Direction + Handoff §1–§3)
 
+- **Two-Phase Delivery Plan (Explicit User Override — Decision Precedence #1):**
+  - **Phase 1 (*Dig Dug* 1982 MVS Replica):** Disassemble the original 1982 *Dig Dug* arcade Z80 ROMs to build a faithful 68000 Neo Geo MVS replica with authentic speeds, pump timings, monster AI/ghosting, rock delays, round tunnel layouts, bonus fruit tables, and scoring—rendered with updated Neo Geo graphics.
+  - **Phase 2 (*Super Dig Dug* Expansion):** Expand the verified Phase 1 MVS engine with the 48 curated additions (`01`–`48`).
+- **Screen Layout (Explicit User Choice):** **Horizontal `320×224` with Side-Panel HUD + Adapted Height** — single-screen landscape presentation placing `1UP / HIGH SCORE / Lives / Round Flowers` in a side HUD column and adapting vertical underground strata height to fit cleanly within `224` px (no camera scrolling, no TATE rotation).
 - **Target Hardware:** Standard SNK Neo Geo MVS (`320×224`, 12 MHz 68000, Z80 + YM2610, 64 KiB Work RAM, 96 sprite strips/scanline hardware max, 80 strips/scanline working ceiling).
-- **Controls & Loadout:** 4-way movement/digging, Button `A` = unlimited pump (with 1 pre-zone pump module), Button `B` = finite-ammo special (1 pre-zone tool or bomb). No in-combat inventory switching.
+- **Controls & Loadout:** 4-way movement/digging, Button `A` = unlimited pump (plus 1 pre-zone pump module in Phase 2), Button `B` = finite-ammo special in Phase 2. No in-combat inventory switching.
 - **Universal Solvability:** Every normal enemy and boss encounter must remain completable using movement, digging, standard pumping, and rocks after special ammo is exhausted.
 
 ---
@@ -16,7 +20,7 @@ Records confirmed constraints from the specifications alongside reversible engin
 
 | ID | Area | Decision / Working Default | Rationale & Reversibility |
 |---|---|---|---|
-| **D-01** | Arena Geometry | Playfield `288×176` at screen `(x=16, y=32)`: `18×11` visual `16×16` tiles = `36×22` logical `8×8` occupancy cells. Top `32px` (`y=0..31`) reserved for HUD + surface strip; `16px` left/right side margins. | Matches Handoff §5 provisional layout; requires only **18 vertical sprite strips** for the entire dirt playfield, leaving 62 strips within the 80-strip budget for actors, rocks, bosses, and FX. Tunable after M2/M8 density checks. |
+| **D-01** | Side-HUD Horizontal Arena Geometry | On `320×224`: `224×224` left/center playfield (`14×14` visual `16×16` tiles = `28×28` logical `8×8` occupancy cells, matching original *Dig Dug*'s exact `224` px / `14`-column width!) + `96×224` right-hand FIX HUD panel (`x=224..319`, `12` FIX columns wide). | Preserves 1982 *Dig Dug*'s **exact 14-column (`224` px) horizontal tunnel geometry** 1:1 while fitting `224` px height cleanly (`14` rows instead of `16`, using only **14 vertical sprite strips** for dirt!) and leaving a crisp `96` px arcade side panel for scores, lives, flowers, and Phase 2 loadout icons. |
 | **D-02** | Fixed-Point Coordinates | World positions use signed `Q12.4` (`1/16` pixel subpixel precision, `int16_t`) relative to screen top-left. | Fits cleanly in 16-bit 68000 registers without overflow across `320×224`, supports smooth tunnel vs. dig speeds, and serializes identically on host and 68000. |
 | **D-03** | Frame Timing & Authoring Ticks | Simulation runs at 1 tick per VBlank (`~59.1921 Hz` MVS NTSC, `~16.894 ms/tick`). Offline animation converter maps milliseconds to integer ticks via `max(1, round(ms * 59.1921 / 1000.0))`. | Satisfies Handoff §6 and Sprite Guide §2B ("do not assume exactly 60 Hz"). |
 | **D-04** | Shared Terrain Mask Contract | Each `16×16` visual tile encodes filled `8×8` quadrants as `bit0=TL`, `bit1=TR`, `bit2=BL`, `bit3=BR` (`0`=empty tunnel, `15`=solid earth). Generated into a single shared header/module consumed by both Python asset tools and C runtime. | Eliminates any drift between collision occupancy and visual dirt tiles (Sprite Guide §3). |

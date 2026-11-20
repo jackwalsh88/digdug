@@ -3,8 +3,9 @@
 ## Current Position
 
 - **Repository State:** Bootstrapped in `/workspace` with authoritative docs (`docs/`), directory tree, baseline palette (`assets/palettes/metal_red_cyan_v1.json`), `Makefile` + `tools/sdd.py`, and tracking docs.
-- **Active Gameplay Milestone:** **M0** (Platform bring-up & diagnostics ROM) → **M1** (Digging & falling-rock sandbox).
-- **Active Art Batch:** **B0** (`tile_topsoil`, `prop_rocks`, `fx_dig`, `ui_font`) → **B1** (`chr_player_1`, `enm_pooka`, `enm_fygar`, `enm_mecha_pooka`, pumps, core FX, rewards, HUD).
+- **Confirmed Phase 1 Objective:** Ingest & disassemble the 1982 *Dig Dug* arcade Z80 ROM set (`digdug.zip` / `digdugat.zip` uploaded as Base64 `.txt` to avoid chat binary stripping), extract exact speeds/AI/pump/rock/round/scoring tables, and build a faithful **68000 Neo Geo MVS replica** on a **Horizontal `320×224` Side-Panel HUD + Adapted Height (`224×224` playfield + `96×224` side HUD)** layout with updated Neo Geo graphics (`B0`/`B1`), before expanding into Phase 2 (*Super Dig Dug*).
+- **Active Gameplay Milestone:** **Phase 1 Disassembly & Spec** → **M0/M1/M2** (1982 *Dig Dug* MVS Replica) → **M3–M9** (*Super Dig Dug* 48 additions).
+- **Active Art Batch:** **B0** (`tile_topsoil`, `prop_rocks`, `fx_dig`, `ui_font`) + **B1** (`chr_player_1`, `enm_pooka`, `enm_fygar`, `tool_standard_pump`, `fx_pump`, `fx_enemy_attacks`, `pick_rewards`, `ui_hud`).
 
 ---
 

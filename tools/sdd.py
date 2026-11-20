@@ -102,12 +102,34 @@ def cmd_clean(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_test(_args: argparse.Namespace) -> int:
+    import unittest
+
+    suite = unittest.defaultTestLoader.discover(str(ROOT / "tests"), pattern="test_*.py")
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+    return 0 if result.wasSuccessful() else 1
+
+
+def cmd_disasm(args: argparse.Namespace) -> int:
+    import disasm_digdug1982
+
+    rom_path = Path(args.rom).resolve()
+    if not rom_path.exists():
+        print(f"[disasm] ROM input not found: {rom_path}", file=sys.stderr)
+        return 1
+    return disasm_digdug1982.run_disassembly(rom_path, ROOT / "build" / "disasm_1982")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sdd.py",
         description="Super Dig Dug build, asset, validation, and test CLI.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    dis_p = sub.add_parser("disasm", help="Disassemble 1982 Dig Dug Z80 ROMs into build/disasm_1982/")
+    dis_p.add_argument("--rom", required=True, help="Path to digdug.zip, extracted dir, or digdug_b64.txt")
 
     for name, help_text in [
         ("status", "Inspect repository layout and installed toolchain versions"),
@@ -129,6 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    sys.path.insert(0, str(ROOT / "tools"))
     parser = build_parser()
     args = parser.parse_args(argv)
     cmd = args.command
@@ -137,15 +160,14 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_status(args)
     if cmd == "clean":
         return cmd_clean(args)
+    if cmd == "disasm":
+        return cmd_disasm(args)
+    if cmd == "test":
+        return cmd_test(args)
     if cmd in ("assets", "asset-check", "asset-preview"):
         return unimplemented_stage(
             cmd,
             "Repository bootstrapped (M0/B0 scaffold). Next step: implement tools/assets/ pipeline.",
-        )
-    if cmd == "test":
-        return unimplemented_stage(
-            cmd,
-            "Repository bootstrapped. Next step: add tests/ suite for terrain, rocks, and tile packing.",
         )
     if cmd == "budgets":
         return unimplemented_stage(
