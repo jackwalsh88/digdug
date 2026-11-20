@@ -7,6 +7,7 @@ PYTHON ?= python3
 SDD    := $(PYTHON) tools/sdd.py
 
 ROM    ?= digdug.zip
+PACK   ?=
 
 .PHONY: help status disasm assets asset-check asset-preview art-viewer rom test run debug budgets package clean
 
@@ -20,7 +21,7 @@ disasm:
 	@$(SDD) disasm --rom "$(ROM)"
 
 assets:
-	@$(SDD) assets
+	@$(SDD) assets $(if $(PACK),--pack "$(PACK)",)
 
 asset-check:
 	@$(SDD) asset-check

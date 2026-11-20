@@ -6,6 +6,7 @@
 
 # Local MAME runtime / BIOS / NVRAM directories (never bundle third-party BIOS ROMs)
 /mame/roms/
+/mame/hash/
 /mame/nvram/
 /mame/cfg/
 /mame/sta/
@@ -25,3 +26,17 @@ __pycache__/
 .DS_Store
 *.swp
 *~
+
+# Local user-supplied 1982 ROM / 150 MB asset pack inputs
+digdug.zip
+digdug_b64.txt
+Super-Dig-Dug-Complete-Asset-Pack.zip
+/Super-Dig-Dug-Art/
+
+# Generated binary ROM bitplanes, ADPCM images, and intermediate exports
+/assets/generated/*.bin
+/assets/generated/*.zbin
+/assets/generated/asset_manifest.json
+/assets/export/*.png
+!/assets/export/.gitkeep
+

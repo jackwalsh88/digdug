@@ -1,0 +1,87 @@
+{
+  "format": "22050 Hz mono 16-bit PCM",
+  "target_ym2610": {
+    "adpcm_a_hz": 18500,
+    "adpcm_b_max_hz": 55500,
+    "vrom_block_align": 256
+  },
+  "music_suites": [
+    {
+      "id": "topsoil_shuffle",
+      "suite": "Topsoil_Shuffle",
+      "bpm": 128,
+      "bars": 8,
+      "loop_start_sample": 0,
+      "loop_end_sample_exclusive": 330750,
+      "stems": [
+        "Super-Dig-Dug-Art/Audio/Music/Topsoil_Shuffle/01_burrow_groove.wav",
+        "Super-Dig-Dug-Art/Audio/Music/Topsoil_Shuffle/02_motion_melody.wav",
+        "Super-Dig-Dug-Art/Audio/Music/Topsoil_Shuffle/03_danger_percussion.wav"
+      ],
+      "preview_only": "Super-Dig-Dug-Art/Audio/Music/Topsoil_Shuffle/full_mix_preview.wav"
+    },
+    {
+      "id": "fault_line_boss",
+      "suite": "Fault_Line_Boss",
+      "bpm": 152,
+      "bars": 8,
+      "loop_start_sample": 0,
+      "loop_end_sample_exclusive": 278526,
+      "stems": [
+        "Super-Dig-Dug-Art/Audio/Music/Fault_Line_Boss/01_burrow_groove.wav",
+        "Super-Dig-Dug-Art/Audio/Music/Fault_Line_Boss/02_motion_melody.wav",
+        "Super-Dig-Dug-Art/Audio/Music/Fault_Line_Boss/03_danger_percussion.wav"
+      ],
+      "preview_only": "Super-Dig-Dug-Art/Audio/Music/Fault_Line_Boss/full_mix_preview.wav"
+    }
+  ],
+  "sfx": [
+    "Super-Dig-Dug-Art/Audio/SFX/air_cannon.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/blast.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/boss_stun.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/capture.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/cryo_burst.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/decoy_squeak.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/dig.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/disc_bounce.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/drill.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/electric_spark.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/fire_breath.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/foam_break.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/foam_lob.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/freeze.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/fuse_warning.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/inflate_step.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/menu_confirm.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/menu_move.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/monster_pop.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/phase.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/pickup.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/player_hurt.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/pressure_release.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/pump_compress.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/pump_extend.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/remote_signal.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/rock_fall.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/rock_impact.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/rock_wobble.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/scanner.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/shield_break.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/soil_refill.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/sonic_pulse.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/spore_spit.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/timer_tick.wav",
+    "Super-Dig-Dug-Art/Audio/SFX/warning.wav"
+  ],
+  "stingers": [
+    "Super-Dig-Dug-Art/Audio/Stingers/bonus_start.wav",
+    "Super-Dig-Dug-Art/Audio/Stingers/extra_life.wav",
+    "Super-Dig-Dug-Art/Audio/Stingers/game_over.wav",
+    "Super-Dig-Dug-Art/Audio/Stingers/high_score.wav",
+    "Super-Dig-Dug-Art/Audio/Stingers/ready.wav",
+    "Super-Dig-Dug-Art/Audio/Stingers/rescue.wav",
+    "Super-Dig-Dug-Art/Audio/Stingers/stage_clear.wav",
+    "Super-Dig-Dug-Art/Audio/Stingers/title.wav",
+    "Super-Dig-Dug-Art/Audio/Stingers/victory.wav"
+  ]
+}

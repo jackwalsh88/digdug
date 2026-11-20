@@ -2,32 +2,37 @@
 
 ## Current Position
 
-- **Repository State:** Bootstrapped in `/workspace` with authoritative docs (`docs/`), directory tree, baseline palette (`assets/palettes/metal_red_cyan_v1.json`), `Makefile` + `tools/sdd.py`, and tracking docs.
-- **Confirmed Phase 1 Objective:** Ingest & disassemble the 1982 *Dig Dug* arcade Z80 ROM set (`digdug.zip` / `digdugat.zip` uploaded as Base64 `.txt` to avoid chat binary stripping), extract exact speeds/AI/pump/rock/round/scoring tables, and build a faithful **68000 Neo Geo MVS replica** on a **Horizontal `320×224` Side-Panel HUD + Adapted Height (`224×224` playfield + `96×224` side HUD)** layout with updated Neo Geo graphics (`B0`/`B1`), before expanding into Phase 2 (*Super Dig Dug*).
-- **Active Gameplay Milestone:** **Phase 1 Disassembly & Spec** → **M0/M1/M2** (1982 *Dig Dug* MVS Replica) → **M3–M9** (*Super Dig Dug* 48 additions).
-- **Active Art Batch:** **B0** (`tile_topsoil`, `prop_rocks`, `fx_dig`, `ui_font`) + **B1** (`chr_player_1`, `enm_pooka`, `enm_fygar`, `tool_standard_pump`, `fx_pump`, `fx_enemy_attacks`, `pick_rewards`, `ui_hud`).
+- **Phase 1 (1982 *Dig Dug* Replica on Neo Geo MVS) + Complete 65-Family Asset & Audio Pipeline: COMPLETE IN SOURCE & HOST-VERIFIED (`17/17` tests passing)**
+  - Dual-mode asset & YM2610 ADPCM-A audio compiler (`tools/assets/pack_pipeline.py`) compiles all **65** families (`2,074` frames → `8,203` C-ROM tiles, `512` S-ROM tiles) and **51** runtime audio cues (`134 KB` stand-in / `Super-Dig-Dug-Complete-Asset-Pack.zip` ready via `make assets PACK=...`).
+  - Zero-dependency Z80 + YM2610 M1 sound driver (`tools/build_m1_z80.py` + `src/audio/z80_driver.asm`) builds `128 KB` `build/m1.bin` with sample-locked 3-stem music (`groove` + movement-linked `melody` + `danger` percussion) and 3-channel SFX.
+  - Portable C99 Neo Geo MVS platform layer (`src/platform/neogeo/`), M0/B0 Art & Hardware Diagnostics Viewer (`src/game/art_viewer.c`), and Phase 1 1982 *Dig Dug (Rev. 2)* engine (`src/{world,score,actors,combat,render,game}/`) are implemented for the confirmed **Horizontal `320×224` (`224×224` playfield + `96×224` FIX Side-HUD)** layout.
 
 ---
 
-## Concrete Next Tasks
+## Immediate Local Verification on macOS (Phase 1 Sign-Off)
 
-### Track A — Sprite, Terrain & Bitplane Pipeline (`B0` → `B1`, fully runnable in this sandbox)
-1. Implement zero-dependency indexed PNG + JSON reader/writer and Neo Geo palette word converter in `tools/assets/`.
-2. Implement Neo Geo `16×16` C-ROM (`C1`/`C2`) and `8×8` S-ROM (`S1`) bitplane encoders + independent known-answer unit tests.
-3. Implement `asset-check` validator (index 0 transparency, ≤16 colors/tile, stable pivots/hitboxes/sockets, terrain quadrant occupancy, `< 80` scanline strip calculator) and `asset-preview` (`1×` and `8×` nearest-neighbor contact sheets).
-4. Author deterministic **B0** pixel masters (`ui_font`, `tile_topsoil` 16 occupancy masks + 3 solid variants + surface/bedrock, `prop_rocks`, `fx_dig`), generate review sheets in `assets/review/`, and visually inspect them.
-5. Expand to **B1** masters (`chr_player_1`, `enm_pooka`, `enm_fygar`, `enm_mecha_pooka`, `tool_standard_pump`, `module_turbo_hose`, `fx_pump`, `fx_enemy_attacks`, `pick_rewards`, `ui_hud`) and emit C tables into `assets/generated/`.
-
-### Track B — Gameplay Core & Native Neo Geo MVS Code (`M0` → `M1`)
-1. Define the shared terrain occupancy & fixed-point math contracts (`src/world/`, `src/actors/`) with matching Python reference/binding tests so host unit tests run inside this container even without `gcc`.
-2. Write the `ngdevkit`-compatible **M0 diagnostics ROM** & **MAME `art-viewer` ROM** C sources (`src/platform/neogeo/`, `src/render/`, `src/audio/`) plus linker/RAM budget script and isolated `mame/run_mame.sh` launcher.
-3. Implement the **M1 digging sandbox** (`36×22` logical grid, smooth `Q12.4` 4-way movement/digging, dirty vertical terrain sprite strips, rock support/wobble/fall state machine) and verify edge cases via `python3 tools/sdd.py test`.
+1. Install 68000 cross-compiler & MAME via Homebrew (if not already installed):
+   ```sh
+   brew install m68k-elf-gcc mame
+   ```
+2. Pack your real 150 MB asset archive, run native C99 + Python tests, build the MVS cartridge, and launch in MAME:
+   ```sh
+   make assets PACK=/path/to/Super-Dig-Dug-Complete-Asset-Pack.zip
+   make asset-check
+   make test
+   make rom
+   NEOGEO_BIOS_DIR=/path/to/dir_containing_neogeo_zip make run
+   ```
+   *(Tip: Press `START + SELECT` at any time in-game—or build `make art-viewer`—to open the M0/B0 Art & Hardware Diagnostics Viewer and inspect all 65 real sprite families and V-ROM audio cues inside MAME!)*
 
 ---
 
-## Active Environment Blockers (Named Precisely per Handoff §1 & §13)
+## Phase 2 Roadmap — Expanding *Dig Dug* into *Super Dig Dug* (48 Additions)
 
-1. **`ngdevkit` (`m68k-neogeo-elf-gcc`, Z80 SDCC) and `mame` are not installed in this cloud sandbox**, and outbound access to package mirrors/GitHub is blocked (`HTTP 403`).
-   - *Mitigation:* All C sources, headers, `ngdevkit` build rules, and `mame/run_mame.sh` scripts will be authored cleanly for target compilation, while distinguishing host-verified Python/asset/simulation outputs from local MAME hardware verification.
-2. **External concept PNGs (`Armored Mecha-Pooka pixel sprite.png`, `Pixel Air Cannon Pickup.png`) are not yet in `assets/concepts/`.**
-   - *Mitigation:* Author `enm_mecha_pooka` and `tool_air_cannon` from the detailed written briefs in `docs/Super-Dig-Dug-Coding-Agent-Sprite-Production.md`; user can supply the concept PNGs later if closer visual matching is desired.
+Once Phase 1 boots and plays to your satisfaction in MAME, we proceed milestone-by-milestone across the already-packed 65-family asset catalog:
+1. **Milestone `M2` (`#01` Mecha-Pooka, `#22` Turbo Hose, `#48` Expanded Combat Animation)**
+2. **Milestone `M3` (`#11` Air Cannon, `#17` Dig Bomb, `#40` Technique Bonus, Pre-Zone Equipment Select)**
+3. **Milestone `M4` (Mid-tier enemies `#02, #03, #04, #07, #09`, `#18` Remote Charge, `#20` Decoy Turnip, `#23` Long Tom, `#35–#37` Pickups, `#39` Pop Chain, `#41` Clean Clear, `#43–#44` Bonus Stages)**
+4. **Milestone `M5` (Advanced enemies `#05, #06, #08, #10` & tools/traps `#12–#16, #19, #21, #24`)**
+5. **Milestone `M6–M7` (6 New Worlds `#25–#30`, 4 Bosses `#31–#34`, `#38` Bonus Balloon, `#42` Garden Panic, `#46` Boss Rush, `#47` Reactive Boss Music)**
+6. **Milestone `M8–M9` (`#45` Simultaneous 2P Co-op Rescue & Final Balance/Soak Sign-Off)**

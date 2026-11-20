@@ -8,16 +8,17 @@ Tracks the baseline (`base`) foundation and all **48 curated additions** (`01`�
 
 ---
 
-## Baseline Systems (`base` — Not Counted Toward the 48 Additions)
+## Baseline Systems (`base` — Phase 1: 1982 *Dig Dug* Replica on Neo Geo MVS)
 
 | System / Asset Family | Milestone / Batch | Gameplay Status | Art Status | Notes & Constraints |
 |---|---|---|---|---|
-| 4-way movement, digging & `36×22` terrain occupancy (`tile_topsoil`, `fx_dig`) | M1 / B0 | `not_started` | `missing` | Smooth fixed-point movement, 16 quadrant masks, dirty vertical sprite strips |
-| Falling rocks & support checks (`prop_rocks`) | M1 / B0 | `not_started` | `missing` | Supported → wobble → fall → impact/break; crushes enemies & players; multi-kill dedup |
-| FIX HUD & Arcade Font (`ui_font`, `ui_hud`) | M0–M2 / B0–B1 | `not_started` | `missing` | `8×8` S-ROM glyphs, clear `O/0` and `I/1`, runtime text assembly |
-| Player 1 (`chr_player_1`) & Standard Pump (`tool_standard_pump`, `fx_pump`) | M2 / B1 | `not_started` | `missing` | Unlimited ammo; tap/hold pumping, tether break & enemy deflation |
-| Baseline Enemies (`enm_pooka`, `enm_fygar`, `fx_enemy_attacks`) | M2 / B1 | `not_started` | `missing` | Tunnel walk, phasing eye cue, inflation stages, Fygar inhale telegraph & flame |
-| Arcade Loop, Depth Scoring, Bonus Fruit (`pick_rewards`, `ui_screen_frames`, `ui_logo`, `ui_ending`) | M2–M7 / B1–B6 | `not_started` | `missing` | Title/attract, 3 lives default, depth-sensitive & multi-crush scoring |
+| 4-way movement, digging & `28×28` cell / `14×14` tile occupancy (`tile_topsoil`, `fx_dig`) | Phase 1 (M0–M1 / B0) | `host_sim` (C99 + Python) | `exported` (`standin_placeholder` in CI; `imported_unreviewed` via `PACK=`) | `Q12.4` fixed-point, `16`px turn-grid cornering, 16 quadrant masks (`0x00..0x0F`), 14 vertical sprite strips (`x=0..223`) |
+| Falling rocks & support checks (`prop_rocks`) | Phase 1 (M1 / B0) | `host_sim` (C99 + Python) | `exported` | `SUPPORTED` → `HELD_BY_PLAYER` (indefinite hold!) → `WOBBLE` → `FALLING` → `SHATTER`; `1,000..15,000` multi-crush; 2-rock veggie spawn |
+| `96×224` Side-Panel FIX HUD & Arcade Font (`ui_font`, `ui_hud`) | Phase 1 (M0–M2 / B0–B1) | `host_sim` (C99 + Python) | `exported` | `12×28` S-ROM `8×8` tiles (`x=224..319`, `0` sprite strips!), `HIGH SCORE`, `1UP`/`2UP`, helmet lives, round flowers |
+| Player 1 (`chr_player_1`) & Standard Harpoon Pump (`tool_standard_pump`, `fx_pump`) | Phase 1 (M2 / B1) | `host_sim` (C99 + Python) | `exported` | `32`px reach, thin-dirt (`≤8`px) pierce, tap vs hold pump cadence, harmless inflated pass-through (`1..3`), deflation decay |
+| Baseline Enemies (`enm_pooka`, `enm_fygar`, `fx_enemy_attacks`) | Phase 1 (M2 / B1) | `host_sim` (C99 + Python) | `exported` | Manhattan tunnel chase, ghost-eyeball dirt phasing, Fygar horizontal inhale telegraph + 3-tile flame, hurry-up & top-left `(0,0)` escape |
+| Arcade Loop, Stratum/2× Fygar Scoring & 18-Round Vegetables (`pick_rewards`, `ui_logo`) | Phase 1 (M2 / B1) | `host_sim` (C99 + Python) | `exported` | Title/attract demo, 1P/2P alternating, `200..500` (`2×` horiz Fygar), `400..8,000` veggies, `20k`/`60k` extra lives, safe Round 256+ wrap |
+| M0/B0 Art & Hardware Diagnostics Viewer (`src/game/art_viewer.c`) | M0 / B0 | `host_sim` (C99) | `exported` | Browses all 65 families & 2,074 frames, background luminance toggle, 16-mask grid test, VBlank/input/strip telemetry, V-ROM cue audition |
 
 ---
 
