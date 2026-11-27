@@ -12,6 +12,7 @@ WAV capture land in build/smoke/<scenario>/.
 Usage:
     python3 tools/mame_smoke.py boot
     python3 tools/mame_smoke.py play --wav
+    python3 tools/mame_smoke.py play --avi     (large file; compress with ffmpeg)
 """
 
 from __future__ import annotations
@@ -171,7 +172,7 @@ def _lua(events: list[tuple], symbols: dict[str, int]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def run(name: str, wav: bool, cart: str) -> int:
+def run(name: str, wav: bool, cart: str, avi: bool = False) -> int:
     mame = shutil.which("mame") or ("/usr/games/mame" if Path("/usr/games/mame").exists() else None)
     if not mame:
         print("[smoke] mame not found on PATH", file=sys.stderr)
@@ -196,6 +197,9 @@ def run(name: str, wav: bool, cart: str) -> int:
     cmd += ["-sound", "none"]
     if wav:
         cmd += ["-wavwrite", str(out / "audio.wav")]
+    if avi:
+        # MAME resolves -aviwrite relative to the snapshot directory.
+        cmd += ["-aviwrite", "capture.avi"]
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     log = proc.stdout + proc.stderr
     (out / "mame.log").write_text(log)
@@ -211,9 +215,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("scenario", choices=sorted(SCENARIOS))
     parser.add_argument("--wav", action="store_true", help="record emulated audio to audio.wav")
+    parser.add_argument("--avi", action="store_true", help="record uncompressed video+audio to snap/capture.avi")
     parser.add_argument("--cart", default="superdigdug")
     args = parser.parse_args()
-    return run(args.scenario, args.wav, args.cart)
+    return run(args.scenario, args.wav, args.cart, args.avi)
 
 
 if __name__ == "__main__":
