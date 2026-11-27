@@ -1,84 +1,111 @@
-# MAME & Toolchain Setup (`MAME-SETUP.md`)
+# MAME and Toolchain Setup (`MAME-SETUP.md`)
 
-## Verification Status
+## Verification status
 
-**Current Status:** **NOT YET VERIFIED IN MAME** (`M0` pending).
+**Verified on 2026-11-27** in an Ubuntu 24.04 (x86_64) container:
 
-Per Handoff §4 and §13:
-- This cloud sandbox currently lacks `mame`, `ngdevkit` (`m68k-neogeo-elf-gcc`), `gcc`, and `make`, and outbound network egress to package mirrors/GitHub is disabled by sandbox policy.
-- Consequently, **no untested `mame superdigdug` command is claimed here as working**. Once a local workstation runs the M0 bring-up steps below, pin exact versions, SHA-1/CRC32 hashes, and the tested command line in this document.
+| Component | Version |
+|---|---|
+| MAME | 0.264 (Ubuntu package `mame`) |
+| 68000 compiler | `m68k-neogeo-elf-gcc` 15.3.0 (`ngdevkit-toolchain` 0.1+202611221216) |
+| ngdevkit | 0.5+202611251130 (PPA `ppa:dciabrin/ngdevkit`) |
+| BIOS | ngdevkit **nullbios 0.5** (`/usr/share/ngdevkit/neogeo.zip`), an open-source BIOS replacement |
+| Machine / loading route | `neogeo` driver, cartridge loaded through a project software list (`-hashpath mame/hash`) |
 
----
+The game ROM boots, plays, and produces sound under this configuration. It has
+**not** been run under a commercial MVS BIOS (`sp-s2.sp1` and others); nullbios
+implements the same USER / PLAYER_START / SYSTEM_IO contract, but passing under
+it does not prove compatibility with every retail BIOS revision.
 
-## 1. Required Host Toolchain (Linux / WSL2 Baseline)
-
-1. **`ngdevkit` + `ngdevkit-examples`**
-   - Provides `m68k-neogeo-elf-gcc`, binutils, Z80/SDCC audio toolchain, `libngdevkit`, linker scripts, and reference cartridge builders.
-   - Record pinned git commit hashes for both `ngdevkit` and `ngdevkit-examples` in `DECISIONS.md` and `TEST-REPORT.md` upon installation.
-2. **MAME** (0.250+ recommended; pin exact `mame -version` output)
-   - Must include the `neogeo` (`Neo-Geo MV-1F` / `mv1fs` / `aes` or `ngdevkit`-matched MVS slot driver) driver and `neogeo.xml` software list definitions.
-3. **Python 3.10+**
-   - Used by `tools/sdd.py` and `tools/assets/` for deterministic PNG authoring, terrain mask generation, C-ROM/S-ROM bitplane encoding, round-trip verification, and host simulation tests.
-4. **Optional: Aseprite CLI (`aseprite --batch`)**
-   - When absent, the pipeline uses native indexed PNG sheets + JSON frame/socket manifests directly.
-
----
-
-## 2. System BIOS Prerequisites
-
-MAME requires a valid Neo Geo system ROM set (`neogeo.zip`) in its `rompath`:
-- **Never commit `neogeo.zip` or commercial game ROMs into git** (`.gitignore` blocks `neogeo.zip` and `mame/roms/`).
-- `ngdevkit` can build or pair with an open/development BIOS (`uni-bios` or `ngdevkit` nullbios) if supported by the pinned MAME machine definition; verify all required system files (`000-lo.lo`, `sfix.sfix`, `sm1.sm1`, and the selected `sp-s2.sp1` or `ngdevkit` BIOS) via:
-  ```sh
-  mame neogeo -verifyroms -rompath /path/to/bios_dir
-  ```
-- Record the chosen BIOS filename and CRC32/SHA-1 in local setup notes when certifying `M0`. Note that passing under a development BIOS does not prove compatibility with every retail MVS BIOS revision.
-
----
-
-## 3. Cartridge Registration & Isolated Loading Policy (Handoff §4)
-
-A `.zip` filename alone does **not** register a new arcade game in MAME. Use one of these two clean routes in order of preference:
-
-### Route A — Software-List / Custom Hash XML or `ngdevkit` Cartridge Route (Preferred)
-1. Inspect the pinned MAME build's Neo Geo cartridge slot and software list support:
-   ```sh
-   mame neogeo -listslots
-   mame neogeo -listmedia
-   ```
-2. Build an unmodified `ngdevkit-examples` sample first to confirm the exact P-ROM (16-bit word-swapped/even-odd), S-ROM (`8×8` FIX), C-ROM (`C1`/`C2` odd/even bitplane halves), M-ROM (Z80), and V-ROM (ADPCM) layout expected by `ngdevkit`'s loader path.
-
-### Route B — Isolated Donor Registration or Minimal MAME Registration Patch
-- If `ngdevkit`'s default workflow substitutes a donor software-list shortname (e.g., `puzzledp`) during early bring-up:
-  - Stage the generated ZIP **exclusively** inside `./mame/roms/` alongside a symlink or copy of `neogeo.zip`.
-  - **Never overwrite a user's shared MAME ROM directory** and never distribute builds under a commercial game's identity.
-- For clean standalone identity (`superdigdug`), keep a minimal MAME driver/hash patch under `mame/` separate from game source.
-
----
-
-## 4. Isolated Runtime Directories & Planned Launch Flags
-
-All project launcher scripts (`mame/run_mame.sh`, invoked by `make run` / `make debug`) must isolate emulator state from `~/.mame`:
+## 1. Install the toolchain (Ubuntu 24.04)
 
 ```sh
-mame neogeo \
-  -rompath "./mame/roms;${NEOGEO_BIOS_DIR}" \
-  -cfg_directory ./mame/cfg \
-  -nvram_directory ./mame/nvram \
-  -state_directory ./mame/sta \
-  -snapshot_directory ./mame/snap \
-  -diff_directory ./mame/diff \
-  -window -nomaximize -nofilter -ues
+sudo tools/setup_linux.sh
 ```
 
-*(Note: Replace `neogeo` + cart argument with the exact verified machine + slot/software-list invocation once proven in Gate M0, and keep `-nofilter` / no CRT shaders enabled for pixel and strip diagnosis.)*
+This adds the ngdevkit PPA and installs `ngdevkit`, `ngdevkit-toolchain`, `mame`
+and Pillow. macOS: ngdevkit publishes a Homebrew tap (`dciabrin/ngdevkit`); it
+has not been verified for this project.
 
----
+## 2. Build
 
-## 5. Gate M0 Verification Checklist
+```sh
+make assets PACK=/path/to/Super-Dig-Dug-Art   # or the asset-pack zip; omit PACK for stand-in art
+make rom                                      # mame/roms/superdigdug.zip + mame/hash/neogeo.xml
+make art-viewer                               # optional: mame/roms/sddview.zip
+```
 
-Before marking `M0` complete in `TEST-REPORT.md`:
-- [ ] Record exact `mame -version`, `m68k-neogeo-elf-gcc --version`, and `ngdevkit` commit SHA.
-- [ ] Boot unmodified `ngdevkit` example cleanly.
-- [ ] Boot `Super Dig Dug` M0 diagnostics ROM (cold boot + hard reset).
-- [ ] Confirm FIX title text, 1 moving `16×16`/`32×32` sprite, palette swatch, VBlank counter, watchdog stability (5-minute run without reset), P1/P2 + Coin/Start inputs, and Z80 sound command round-trip.
+`make rom` assembles the Z80 driver (`src/audio/z80_driver.s`), compiles the
+68000 program, packs P/S/M/V/C chips and writes a software-list entry with
+their hashes. A directory named `Super-Dig-Dug-Art/` in the repository root is
+picked up automatically by `make assets`.
+
+## 3. BIOS
+
+MAME needs a `neogeo.zip` in its ROM path. Two options:
+
+- **Open BIOS (used for all verification here):** `make bios` copies ngdevkit's
+  nullbios to `mame/roms/neogeo.zip`. MAME reports wrong checksums for
+  `sp-s2.sp1`, `sm1.sm1` and `sfix.sfix`; that is expected and it still runs.
+- **Your own MVS BIOS set:** `NEOGEO_BIOS_DIR=/dir/containing/neogeo.zip make run`.
+
+`neogeo.zip` and `mame/roms/` are git-ignored. No BIOS is committed or bundled.
+
+## 4. Run
+
+Interactive:
+
+```sh
+make run            # mame/run_mame.sh superdigdug
+```
+
+which executes
+
+```sh
+mame neogeo superdigdug \
+  -hashpath mame/hash -rompath "mame/roms;$NEOGEO_BIOS_DIR" \
+  -cfg_directory mame/cfg -nvram_directory mame/nvram -state_directory mame/sta \
+  -snapshot_directory mame/snap -diff_directory mame/diff \
+  -window -nomaximize -nofilter
+```
+
+All emulator state stays under `mame/`; `~/.mame` is not touched.
+
+Default MAME keys: `5` coin, `1` / `2` start, arrows move, `Left Ctrl` pump (A),
+`3` ("Next Game", the MVS P1 SELECT input) opens and closes the art viewer on
+the title and attract screens.
+
+Headless (no display needed), with scripted inputs, PNG snapshots and memory
+peeks written to `build/smoke/<scenario>/`:
+
+```sh
+make smoke SCENARIO=boot     # title + attract
+make smoke SCENARIO=play     # coin, start, dig, pump
+make smoke SCENARIO=viewer   # art viewer
+make smoke SCENARIO=soak     # five emulated minutes of play
+make smoke SCENARIO=play WAV=1   # also record build/smoke/play/audio.wav
+```
+
+## 5. ROM layout proven in MAME
+
+| Chip | File | Size | Notes |
+|---|---|---|---|
+| P1 | `0482-p1.p1` | 512 KiB | big-endian program, stored word-swapped (`load16_word_swap`) |
+| S1 | `0482-s1.s1` | 128 KiB | FIX tiles |
+| M1 | `0482-m1.m1` | 128 KiB | Z80 driver + cue table at `$0400` |
+| V1 | `0482-v1.v1` | 1 MiB | ADPCM-A samples (`ymsnd:adpcma`) |
+| C1/C2 | `0482-c1.c1`, `0482-c2.c2` | 1 MiB each | sprite bitplanes 0-1 / 2-3 (`load16_byte`) |
+
+NGH number `0x0482` is a development ID.
+
+## 6. Gate M0 checklist
+
+- [x] Exact `mame -version`, compiler version and ngdevkit version recorded (above).
+- [ ] Boot an unmodified ngdevkit example. Not done; the project cart itself was used to prove the route.
+- [x] Cold boot to title; BIOS coin restart (USER request 3) returns to title.
+- [x] FIX text, sprites, palettes, VBlank counter (art viewer).
+- [x] Five emulated minutes without a crash or watchdog reset (`soak`).
+- [x] Coin and P1 start through the BIOS (credits in backup RAM, PLAYER_START).
+- [ ] P2 inputs and 2P start: code path present, not exercised in MAME yet.
+- [x] Z80 sound command round trip: MAME's audio output matches the source WAV.
+- [ ] Hard reset (F3) and service/test switch behaviour.

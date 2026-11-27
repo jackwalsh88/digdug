@@ -172,10 +172,7 @@ def build_cartridge(viewer_only: bool = False) -> int:
     c1_crc, c1_sha = _crc_sha1(c1_padded)
     c2_crc, c2_sha = _crc_sha1(c2_padded)
 
-    xml_text = f"""<?xml version="1.0"?>
-<!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
-<softwarelist name="neogeo" description="Super Dig Dug Custom MVS Development Software List">
-  <software name="{shortname}">
+    entry = f"""  <software name="{shortname}">
     <description>Super Dig Dug ({'M0/B0 Art Viewer' if viewer_only else '1982 Replica + MVS Engine'})</description>
     <year>2026</year>
     <publisher>Homebrew MVS</publisher>
@@ -198,7 +195,15 @@ def build_cartridge(viewer_only: bool = False) -> int:
       </dataarea>
     </part>
   </software>
-</softwarelist>
+"""
+    # One fragment per cartridge; the software list is rebuilt from all of them
+    # so building the viewer does not drop the game entry (and vice versa).
+    (hash_dir / f"{shortname}.entry").write_text(entry)
+    entries = "".join(f.read_text() for f in sorted(hash_dir.glob("*.entry")))
+    xml_text = f"""<?xml version="1.0"?>
+<!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
+<softwarelist name="neogeo" description="Super Dig Dug Custom MVS Development Software List">
+{entries}</softwarelist>
 """
     (hash_dir / "neogeo.xml").write_text(xml_text)
     print(f"[rom] Built Neo Geo MVS cartridge -> {zip_path.relative_to(ROOT)} + mame/hash/neogeo.xml")

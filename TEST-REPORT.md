@@ -1,5 +1,26 @@
 # Verification & Test Report (`TEST-REPORT.md`)
 
+## 0. MAME verification — 2026-11-27 (latest)
+
+Environment: Ubuntu 24.04 container, MAME 0.264, `m68k-neogeo-elf-gcc` 15.3.0, ngdevkit 0.5, nullbios 0.5, real asset pack (65 atlases, 53 WAVs fetched from Drive). Runs are headless (`tools/mame_smoke.py`, `-video none`); evidence is PNG snapshots, memory peeks and a WAV capture under `build/smoke/`.
+
+| Scenario | Result |
+|---|---|
+| `boot` | Title with logo, cast and high-score table; attract demo with terrain, rocks, enemies. |
+| `play` | Coin: BIOS credits 0 → 1, `BIOS_USER_MODE` 1. Start: credits 1 → 0, `BIOS_USER_MODE` 2, READY, play. Digging scores, pump harpoon, inflation, deaths and respawn observed in snapshots. |
+| `play` timing | 598 game ticks in 600 VBlanks during play; 8 overrun VBlanks in the first 1,500 frames, all at screen transitions. |
+| `viewer` | Opens from the title with P1 SELECT; family/frame browsing, 16-mask terrain grid, cue audition. Runs at roughly half rate (diagnostics redraw every tick). |
+| `soak` | 18,000 frames (five emulated minutes) of scripted play with repeated coins and starts: no CPU exception, no hang; several full games through game over and high-score entry. Restarts seen in the VBlank counter are the BIOS's coin restart (USER request 3), not watchdog resets. |
+| Audio | MAME output cross-correlates 0.998 with the source `Stingers/title.wav` (0.25 s window, replay rate 18,518.5 Hz). |
+
+Measured sizes: 68000 program 58,168 bytes of 512 KiB; `.data` + `.bss` 17,140 bytes of the 56 KiB RAM region; V1 912 KiB of 1 MiB; C1/C2 50% of one 1 MiB pair. The `budgets` RAM and scanline figures remain estimates from the asset pipeline, not target measurements.
+
+Defects fixed on the way to this result: crt0 did not assemble (unprefixed registers); `memcpy` was missing; the tick took about three frames (per-strip scanline telemetry and full terrain/HUD redraws); the Z80 driver never enabled NMI; the ADPCM-A tables did not match the YM2610; the TEST input was read from the RTC bit; title text assumed FIX row r is at y = 8r (it is 8(r − 2)).
+
+Known limitations: not run under a commercial BIOS; P2 controls and 2P start not exercised in MAME; hard reset and the test switch not exercised; gameplay values are the prior session's estimates and have not been compared with the 1982 original; a coin on the title resets the RAM high-score table; music stems restart on a polled end flag, so a loop seam of a few milliseconds is possible; stack depth is not instrumented.
+
+Sections below are the earlier host-only report from the previous session, kept for history.
+
 ## 1. Environment Audit
 
 Probed via `python3 tools/sdd.py status` inside the Ubuntu 24.04 (`x86_64`) cloud container:

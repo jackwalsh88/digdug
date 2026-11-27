@@ -7,12 +7,24 @@ Fan-made early-1990s style arcade sequel to *Dig Dug* targeting **SNK Neo Geo MV
 
 ## Current Status
 
-**Stage:** Repository Bootstrap Complete (`pre-M0` / `pre-B0`)
-- Authoritative specifications saved in `docs/`.
-- Complete runtime (`src/`), asset (`assets/`), level (`levels/`), tooling (`tools/`), emulator (`mame/`), and test (`tests/`) directory structure initialized.
-- Canonical shared 16-entry baseline palette [`assets/palettes/metal_red_cyan_v1.json`](assets/palettes/metal_red_cyan_v1.json) created.
-- Unified task runner [`tools/sdd.py`](tools/sdd.py) and [`Makefile`](Makefile) initialized.
-- **No game ROM or MAME boot has been executed yet.** See [`TEST-REPORT.md`](TEST-REPORT.md) and [`MAME-SETUP.md`](MAME-SETUP.md) for current environment verification status.
+**Phase 1 (1982 *Dig Dug* replica on MVS) boots and plays in MAME** — verified 2026-11-27 in MAME 0.264 under ngdevkit's open-source nullbios, with the real 65-family art and audio pack.
+
+- Title, attract demo, coin/credit/start through the BIOS, digging, pumping, rocks, Pooka and Fygar, lives, round clear, game over and the high-score table run at one game tick per VBlank.
+- Three-stem music and sound effects play through the Z80/YM2610 driver.
+- The art viewer (P1 SELECT on the title screen) browses all 65 families.
+- Not yet done: a run under a commercial MVS BIOS, a fidelity pass against the 1982 original (speeds, AI, timings), 2P verification in MAME, and all Phase 2 (*Super Dig Dug*) features.
+
+Quick start on Ubuntu 24.04:
+
+```sh
+sudo tools/setup_linux.sh
+make assets PACK=/path/to/Super-Dig-Dug-Art
+make rom && make bios
+make smoke SCENARIO=play     # headless check, snapshots in build/smoke/play/
+make run                     # interactive
+```
+
+See [`MAME-SETUP.md`](MAME-SETUP.md), [`TEST-REPORT.md`](TEST-REPORT.md) and [`NEXT-STEPS.md`](NEXT-STEPS.md).
 
 ## Repository Layout
 

@@ -94,6 +94,28 @@ SCENARIOS: dict[str, list[tuple]] = {
 }
 
 
+def _soak(frames: int = 18000) -> list[tuple]:
+    """Five emulated minutes: coin + start whenever idle, constant stick and pump input."""
+    events: list[tuple] = []
+    moves = ["P1 Down", "P1 Right", "P1 Up", "P1 Left", "P1 Right", "P1 Down", "P1 Left", "P1 Up"]
+    for i, start in enumerate(range(240, frames - 200, 97)):
+        events.append(("press", start, moves[i % len(moves)], 70))
+        events.append(("press", start + 75, "P1 A", 5))
+        events.append(("press", start + 85, "P1 A", 5))
+    for start in range(200, frames - 200, 1500):
+        events.append(("press", start, "Coin 1", 6))
+        events.append(("press", start + 60, "1 Player Start", 6))
+    for frame in range(3000, frames, 3000):
+        events.append(("snap", frame))
+        events.append(("peek", frame, "vblanks", "g_vblank_counter", 4))
+        events.append(("peek", frame, "ticks", "g_tick_counter", 4))
+        events.append(("peek", frame, "missed_frames", "g_missed_frames", 4))
+    return events
+
+
+SCENARIOS["soak"] = _soak()
+
+
 def _symbols(cart: str) -> dict[str, int]:
     """Read symbol addresses from the linker map's ELF (build/<cart>.elf)."""
     elf = ROOT / "build" / f"{cart}.elf"

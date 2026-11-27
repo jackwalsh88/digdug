@@ -16,7 +16,9 @@ mkdir -p \
   "${ROOT_DIR}/mame/snap" \
   "${ROOT_DIR}/mame/diff"
 
-exec mame neogeo "${CART_NAME}" \
+MAME_BIN="$(command -v mame || echo /usr/games/mame)"
+
+exec "${MAME_BIN}" neogeo "${CART_NAME}" \
   -hashpath "${ROOT_DIR}/mame/hash" \
   -rompath "${ROOT_DIR}/mame/roms;${BIOS_DIR}" \
   -cfg_directory "${ROOT_DIR}/mame/cfg" \

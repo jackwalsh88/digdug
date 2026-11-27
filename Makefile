@@ -8,8 +8,9 @@ SDD    := $(PYTHON) tools/sdd.py
 
 ROM    ?= digdug.zip
 PACK   ?=
+SCENARIO ?= play
 
-.PHONY: help status disasm assets asset-check asset-preview art-viewer rom test run debug budgets package clean
+.PHONY: help status disasm smoke bios assets asset-check asset-preview art-viewer rom test run debug budgets package clean
 
 help:
 	@$(SDD) --help
@@ -49,6 +50,14 @@ budgets:
 
 package:
 	@$(SDD) package
+
+# Headless MAME scenario (boot, play, viewer): snapshots + memory peeks in build/smoke/
+smoke:
+	@$(PYTHON) tools/mame_smoke.py $(SCENARIO) $(if $(WAV),--wav,)
+
+# Stage ngdevkit's open-source nullbios as mame/roms/neogeo.zip (no commercial BIOS needed)
+bios:
+	@mkdir -p mame/roms && cp /usr/share/ngdevkit/neogeo.zip mame/roms/neogeo.zip && echo "[bios] nullbios staged in mame/roms/neogeo.zip"
 
 clean:
 	@$(SDD) clean

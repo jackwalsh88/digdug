@@ -1,38 +1,30 @@
-# Next Steps & Active Work Order (`NEXT-STEPS.md`)
+# Next Steps (`NEXT-STEPS.md`)
 
-## Current Position
+## Current position (2026-11-27)
 
-- **Phase 1 (1982 *Dig Dug* Replica on Neo Geo MVS) + Complete 65-Family Asset & Audio Pipeline: COMPLETE IN SOURCE & HOST-VERIFIED (`17/17` tests passing)**
-  - Dual-mode asset & YM2610 ADPCM-A audio compiler (`tools/assets/pack_pipeline.py`) compiles all **65** families (`2,074` frames → `8,203` C-ROM tiles, `512` S-ROM tiles) and **51** runtime audio cues (`134 KB` stand-in / `Super-Dig-Dug-Complete-Asset-Pack.zip` ready via `make assets PACK=...`).
-  - Zero-dependency Z80 + YM2610 M1 sound driver (`tools/build_m1_z80.py` + `src/audio/z80_driver.asm`) builds `128 KB` `build/m1.bin` with sample-locked 3-stem music (`groove` + movement-linked `melody` + `danger` percussion) and 3-channel SFX.
-  - Portable C99 Neo Geo MVS platform layer (`src/platform/neogeo/`), M0/B0 Art & Hardware Diagnostics Viewer (`src/game/art_viewer.c`), and Phase 1 1982 *Dig Dug (Rev. 2)* engine (`src/{world,score,actors,combat,render,game}/`) are implemented for the confirmed **Horizontal `320×224` (`224×224` playfield + `96×224` FIX Side-HUD)** layout.
+- Latest bootable revision: branch `claude/admiring-bohr-c8n1oq`.
+- Phase 1 (1982 *Dig Dug* replica on MVS) builds with ngdevkit and runs in MAME 0.264 under nullbios with the real art and audio pack. See `TEST-REPORT.md` §0 for evidence and `MAME-SETUP.md` for the exact procedure.
+- Handoff gates: M0 is met except for the items left unchecked in `MAME-SETUP.md` §6; M1 (digging sandbox) behaviour is present inside the Phase 1 loop but has not been reviewed against its pass criteria one by one.
 
----
+## To resume in a fresh environment
 
-## Immediate Local Verification on macOS (Phase 1 Sign-Off)
+```sh
+sudo tools/setup_linux.sh
+# place the asset pack at ./Super-Dig-Dug-Art (Drive: digdug/Super-Dig-Dug-Art; only
+# Assets/*/*/atlas.{png,json}, palette.json and Audio/**/*.wav are needed)
+make assets && make rom && make bios
+make test && make smoke SCENARIO=play
+```
 
-1. Install 68000 cross-compiler & MAME via Homebrew (if not already installed):
-   ```sh
-   brew install m68k-elf-gcc mame
-   ```
-2. Pack your real 150 MB asset archive, run native C99 + Python tests, build the MVS cartridge, and launch in MAME:
-   ```sh
-   make assets PACK=/path/to/Super-Dig-Dug-Complete-Asset-Pack.zip
-   make asset-check
-   make test
-   make rom
-   NEOGEO_BIOS_DIR=/path/to/dir_containing_neogeo_zip make run
-   ```
-   *(Tip: Press `START + SELECT` at any time in-game—or build `make art-viewer`—to open the M0/B0 Art & Hardware Diagnostics Viewer and inspect all 65 real sprite families and V-ROM audio cues inside MAME!)*
+## Next concrete tasks, in order
 
----
+1. **Owner play-test** of `mame/roms/superdigdug.zip` (interactive `make run`), ideally also under a real MVS BIOS, and feedback on feel.
+2. **Fidelity pass against the 1982 original.** `tools/disasm_digdug1982.py` needs the original ROM set (`digdug.zip`, git-ignored), which is not in this repository or the Drive folder. Extract speeds, pump cadence, rock delays, AI/ghost timings and round layouts and replace the current estimated values; the 14×14 tile adaptation of the 14×18 original needs an explicit mapping decision.
+3. **Finish M0/M1 evidence:** P2 inputs and 2P start in MAME; hard reset; high-score table in the backup-RAM block; stack watermark; target-side worst-case strip count instead of the pipeline estimate.
+4. **Presentation polish for Phase 1:** title layout (logo is 256 px wide on a 224 px playfield), round-flower and lives icons, death/pop animation frames, art-viewer tick cost.
+5. **Phase 2, milestone M2:** #01 Mecha-Pooka (extra inflation stage), #22 Turbo Hose, first #48 warning poses; then M3 (#11 Air Cannon, #17 Dig Bomb, #40 Technique Bonus, equipment select).
 
-## Phase 2 Roadmap — Expanding *Dig Dug* into *Super Dig Dug* (48 Additions)
+## Open decisions for the owner
 
-Once Phase 1 boots and plays to your satisfaction in MAME, we proceed milestone-by-milestone across the already-packed 65-family asset catalog:
-1. **Milestone `M2` (`#01` Mecha-Pooka, `#22` Turbo Hose, `#48` Expanded Combat Animation)**
-2. **Milestone `M3` (`#11` Air Cannon, `#17` Dig Bomb, `#40` Technique Bonus, Pre-Zone Equipment Select)**
-3. **Milestone `M4` (Mid-tier enemies `#02, #03, #04, #07, #09`, `#18` Remote Charge, `#20` Decoy Turnip, `#23` Long Tom, `#35–#37` Pickups, `#39` Pop Chain, `#41` Clean Clear, `#43–#44` Bonus Stages)**
-4. **Milestone `M5` (Advanced enemies `#05, #06, #08, #10` & tools/traps `#12–#16, #19, #21, #24`)**
-5. **Milestone `M6–M7` (6 New Worlds `#25–#30`, 4 Bosses `#31–#34`, `#38` Bonus Balloon, `#42` Garden Panic, `#46` Boss Rush, `#47` Reactive Boss Music)**
-6. **Milestone `M8–M9` (`#45` Simultaneous 2P Co-op Rescue & Final Balance/Soak Sign-Off)**
+- Whether to commit the ~7 MB asset subset (atlases, JSON, WAVs) to the repository so builds do not depend on Drive.
+- Which original ROM revision to use as the fidelity reference, and how to provide it.

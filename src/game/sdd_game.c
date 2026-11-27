@@ -153,13 +153,14 @@ void sdd_game_tick(void) {
                 160, 96, PAL_ENM_FYGAR, true
             );
 
-            mvs_fix_print(4u,  9u,  PAL_FIX_GOLD, "1982 ARCADE REPLICA EDITION");
-            mvs_fix_print(7u,  15u, PAL_FIX_P1,   "TOP 5 DIGGERS");
+            /* FIX row r sits at screen y = (r - 2) * 8; the cast occupies y = 65..96. */
+            mvs_fix_print(1u,  15u, PAL_FIX_GOLD, "1982 ARCADE REPLICA EDITION");
+            mvs_fix_print(7u,  17u, PAL_FIX_P1,   "TOP 5 DIGGERS");
             for (uint8_t i = 0u; i < 5u; ++i) {
-                mvs_fix_print(7u, (uint8_t)(17u + i), PAL_FIX_TEXT, g_hiscores[i].initials);
-                mvs_fix_print_u32(13u, (uint8_t)(17u + i), 8u, PAL_FIX_GOLD, g_hiscores[i].score);
+                mvs_fix_print(7u, (uint8_t)(19u + i), PAL_FIX_TEXT, g_hiscores[i].initials);
+                mvs_fix_print_u32(13u, (uint8_t)(19u + i), 8u, PAL_FIX_GOLD, g_hiscores[i].score);
             }
-            mvs_fix_print(4u, 24u, PAL_FIX_P2,
+            mvs_fix_print(4u, 26u, PAL_FIX_P2,
                           (g_game.credits > 0u) ? "PRESS 1P OR 2P START" : "    INSERT COIN     ");
 
             sdd_render_draw_side_hud(g_game.score[0], g_game.score[1], 0u, false, 3u, 1u, g_game.credits);
