@@ -41,9 +41,9 @@ void sdd_art_viewer_init(void) {
 bool sdd_art_viewer_tick_and_render(void) {
     uint16_t pr = g_input.pressed[0];
 
-    /* Exit back to game on START+SELECT (unless built in standalone viewer-only ROM) */
+    /* Exit back to the title on P1 SELECT (unless built as the standalone viewer ROM) */
 #ifndef SDD_ART_VIEWER_ONLY
-    if ((g_input.held[0] & INPUT_START) && (pr & INPUT_SELECT)) {
+    if (pr & INPUT_SELECT) {
         uint16_t blk[16];
         for (uint8_t i = 0u; i < 16u; ++i) blk[i] = 0x8000u;
         mvs_set_palette_16(PAL_BACKDROP, blk);

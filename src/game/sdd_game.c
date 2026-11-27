@@ -30,6 +30,7 @@ static void start_player_round(bool fresh_round) {
 }
 
 static void enter_title(void) {
+    mvs_set_in_game(false);
     g_game.mode       = GAME_MODE_TITLE;
     g_game.mode_timer = 360u;
     mvs_fix_clear_all();
@@ -49,7 +50,8 @@ void sdd_game_init(bool boot_into_viewer) {
     sdd_score_init_defaults();
     sdd_audio_init();
 
-    g_game.credits       = 0u;
+    g_coin_sound_cmd     = (uint8_t)(SND_CMD_PLAY_CUE_BASE + (uint8_t)AUDIO_SFX_PICKUP);
+    g_game.credits       = mvs_credits();
     g_game.two_player    = false;
     g_game.active_player = 0u;
     g_game.score[0]      = 0u;
@@ -97,17 +99,14 @@ static void award_session_points(uint32_t pts) {
 }
 
 void sdd_game_tick(void) {
-    /* Coin insertion (SELECT on AES/dev or COIN chute on MVS) */
-    if ((g_input.sys_pressed & INPUT_COIN) || (g_input.pressed[0] & INPUT_SELECT)) {
-        if (g_game.credits < 99u && !(g_input.held[0] & INPUT_START)) {
-            ++g_game.credits;
-            sdd_audio_play_cue(AUDIO_SFX_PICKUP);
-        }
-    }
+    /* Coins and credits belong to the BIOS (SYSTEM_IO runs every VBlank). */
+    g_game.credits = mvs_credits();
 
-    /* Hardware TEST switch or START+SELECT opens B0/M0 Art & Hardware Diagnostics Viewer */
-    if ((g_input.sys_pressed & INPUT_TEST) ||
-        ((g_input.held[0] & INPUT_START) && (g_input.pressed[0] & INPUT_SELECT) && g_game.mode != GAME_MODE_ART_VIEWER)) {
+    bool on_front_end = (g_game.mode == GAME_MODE_TITLE || g_game.mode == GAME_MODE_ATTRACT);
+
+    /* P1 SELECT on the title/attract screens opens the art and hardware viewer. */
+    if (on_front_end && (g_input.pressed[0] & INPUT_SELECT) && !(g_input.held[0] & INPUT_START)) {
+        mvs_set_start_accept(false);
         g_game.mode = GAME_MODE_ART_VIEWER;
         sdd_art_viewer_init();
         return;
@@ -120,17 +119,13 @@ void sdd_game_tick(void) {
         return;
     }
 
-    /* Allow starting 1P or 2P from Title or Attract (free-play allowed via START if credits==0 in dev build) */
-    if (g_game.mode == GAME_MODE_TITLE || g_game.mode == GAME_MODE_ATTRACT) {
-        if (g_input.pressed[0] & INPUT_START) {
-            if (g_game.credits > 0u) --g_game.credits;
-            begin_new_credit_game(false);
-            return;
-        }
-        if (g_input.pressed[1] & INPUT_START) {
-            if (g_game.credits >= 2u) g_game.credits = (uint8_t)(g_game.credits - 2u);
-            else g_game.credits = 0u;
-            begin_new_credit_game(true);
+    /* PLAYER_START reports which players the BIOS started and charged for. */
+    mvs_set_start_accept(on_front_end);
+    if (on_front_end) {
+        uint8_t req = mvs_take_start_request();
+        if (req != 0u) {
+            mvs_set_in_game(true);
+            begin_new_credit_game((req & MVS_START_P2) != 0u);
             return;
         }
     }
@@ -162,8 +157,8 @@ void sdd_game_tick(void) {
                 mvs_fix_print(7u, (uint8_t)(17u + i), PAL_FIX_TEXT, g_hiscores[i].initials);
                 mvs_fix_print_u32(13u, (uint8_t)(17u + i), 8u, PAL_FIX_GOLD, g_hiscores[i].score);
             }
-            mvs_fix_print(4u, 24u, PAL_FIX_P2,   "PRESS 1P OR 2P START");
-            mvs_fix_print(3u, 26u, PAL_FIX_TEXT, "SELECT:COIN  START+SEL:VIEWER");
+            mvs_fix_print(4u, 24u, PAL_FIX_P2,
+                          (g_game.credits > 0u) ? "PRESS 1P OR 2P START" : "    INSERT COIN     ");
 
             sdd_render_draw_side_hud(g_game.score[0], g_game.score[1], 0u, false, 3u, 1u, g_game.credits);
 
@@ -197,7 +192,7 @@ void sdd_game_tick(void) {
             sdd_render_playfield_and_actors();
             sdd_render_draw_side_hud(g_game.score[0], g_game.score[1], 0u, false, 3u, 1u, g_game.credits);
             mvs_fix_print(9u, 13u, PAL_FIX_GOLD, "GAME  OVER");
-            mvs_fix_print(7u, 15u, PAL_FIX_P1,   "PRESS  START");
+            mvs_fix_print(7u, 15u, PAL_FIX_P1,   (g_game.credits > 0u) ? "PRESS  START" : "INSERT  COIN");
 
             if (g_game.mode_timer > 0u) {
                 --g_game.mode_timer;

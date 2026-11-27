@@ -39,6 +39,6 @@ void sdd_art_viewer_init(void);
 bool sdd_art_viewer_tick_and_render(void); /* Returns true if user requested exit to Title */
 
 /* Cartridge 68000 C entry point called by crt0_mvs.S */
-void sdd_cart_main(void);
+void sdd_cart_main(uint32_t bios_request);
 
 #endif /* SDD_GAME_H */

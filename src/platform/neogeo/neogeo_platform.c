@@ -14,6 +14,11 @@ uint16_t g_mock_vram[0x8800];
 uint16_t g_mock_palette_ram[256 * 16];
 uint8_t  g_mock_last_sound_cmd = 0u;
 uint32_t g_mock_watchdog_kicks = 0u;
+uint8_t  g_mock_credits = 0u;
+/* Provided by crt0_mvs.S on the target */
+volatile uint8_t g_bios_start_req = 0u;
+volatile uint8_t g_start_accept   = 0u;
+volatile uint8_t g_coin_sound_cmd = 0u;
 #endif
 
 /* Shadow buffers in 68000 Work RAM (flushed during VBlank) */
@@ -140,7 +145,6 @@ void mvs_poll_inputs(void) {
     if (sb & 0x04u) { raw_p[1] |= INPUT_START;  }
     if (sb & 0x08u) { raw_p[1] |= INPUT_SELECT; }
     if (sa & 0x03u) { raw_sys  |= INPUT_COIN;   }
-    if (sa & 0x80u) { raw_sys  |= INPUT_TEST;   }
 
     for (uint8_t i = 0u; i < 2u; ++i) {
         uint16_t prev = g_input.held[i];
@@ -163,6 +167,77 @@ void mvs_snd_send(uint8_t cmd) {
 #else
     g_mock_last_sound_cmd = cmd;
 #endif
+}
+
+uint8_t mvs_credits(void) {
+#ifndef SDD_HOST_TEST
+    uint8_t bcd = BRAM_P1_CREDITS_BCD;
+    return (uint8_t)((bcd >> 4) * 10u + (bcd & 0x0Fu));
+#else
+    return g_mock_credits;
+#endif
+}
+
+void mvs_set_start_accept(bool accept) {
+    g_start_accept = accept ? 1u : 0u;
+}
+
+uint8_t mvs_take_start_request(void) {
+#ifdef SDD_HOST_TEST
+    /* No BIOS on the host: derive the request from the start buttons. */
+    if (g_start_accept) {
+        if (g_input.pressed[1] & INPUT_START) {
+            g_bios_start_req = MVS_START_P1 | MVS_START_P2;
+        } else if (g_input.pressed[0] & INPUT_START) {
+            g_bios_start_req = MVS_START_P1;
+        }
+    }
+#endif
+    uint8_t req = g_bios_start_req;
+    if (req != 0u) {
+        g_bios_start_req = 0u;
+        g_start_accept   = 0u;
+    }
+    return req;
+}
+
+void mvs_set_in_game(bool in_game) {
+#ifndef SDD_HOST_TEST
+    BIOS_USER_MODE = in_game ? BIOS_USER_MODE_GAME : BIOS_USER_MODE_DEMO;
+#else
+    (void)in_game;
+#endif
+}
+
+static void crash_put_hex(uint8_t col, uint8_t row, uint32_t value, uint8_t digits) {
+    for (uint8_t i = 0u; i < digits; ++i) {
+        uint8_t nib = (uint8_t)((value >> ((uint32_t)(digits - 1u - i) * 4u)) & 0x0Fu);
+        mvs_fix_put((uint8_t)(col + i), row, (uint16_t)(nib < 10u ? (uint8_t)('0' + nib) : (uint8_t)('A' + nib - 10u)), PAL_FIX_TEXT);
+    }
+}
+
+/* Fatal CPU exception: print the cause on the FIX layer; crt0 then idles. */
+void sdd_crash_report(uint32_t vector, const uint16_t *frame) {
+    /* Bus and address errors push a 14-byte frame; the rest push SR + PC. */
+    const uint16_t *srpc = (vector == 2u || vector == 3u) ? frame + 4 : frame;
+    uint32_t pc = ((uint32_t)srpc[1] << 16) | srpc[2];
+
+    mvs_load_palettes(sdd_palettes);
+    mvs_fix_clear_all();
+    s_sprite_count = 0u;
+    s_prev_sprite_count = MVS_MAX_SPRITES;
+    mvs_fix_print(4u, 10u, PAL_FIX_DANGER, "CPU EXCEPTION");
+    mvs_fix_print(4u, 12u, PAL_FIX_GOLD, "VECTOR");
+    crash_put_hex(12u, 12u, vector, 2u);
+    mvs_fix_print(4u, 14u, PAL_FIX_GOLD, "PC");
+    crash_put_hex(12u, 14u, pc, 8u);
+    mvs_fix_print(4u, 16u, PAL_FIX_GOLD, "SR");
+    crash_put_hex(12u, 16u, srpc[0], 4u);
+    if (vector == 2u || vector == 3u) {
+        mvs_fix_print(4u, 18u, PAL_FIX_GOLD, "ADDR");
+        crash_put_hex(12u, 18u, ((uint32_t)frame[1] << 16) | frame[2], 8u);
+    }
+    mvs_video_commit_vblank();
 }
 
 void mvs_sprites_begin(void) {

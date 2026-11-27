@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 C_AND_ASM_SOURCES = [
     "src/platform/neogeo/crt0_mvs.S",
     "src/platform/neogeo/neogeo_platform.c",
+    "src/platform/neogeo/rt_mem.c",
     "src/audio/sdd_audio.c",
     "src/world/sdd_world.c",
     "src/score/sdd_score.c",
@@ -109,9 +110,12 @@ def build_cartridge(viewer_only: bool = False) -> int:
         "-Wextra",
         "-ffreestanding",
         "-fno-builtin",
+        "-fno-tree-loop-distribute-patterns",
+        "-fomit-frame-pointer",
         "-nostdlib",
         f"-T{ROOT / 'src/platform/neogeo/mvs_cart.ld'}",
         "-Wl,--build-id=none",
+        f"-Wl,-Map={build_dir / (shortname + '.map')}",
     ]
     if viewer_only:
         cmd.append("-DSDD_ART_VIEWER_ONLY=1")

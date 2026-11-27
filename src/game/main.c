@@ -4,7 +4,8 @@
 #include "sdd_game.h"
 #include "../platform/neogeo/neogeo_hw.h"
 
-void sdd_cart_main(void) {
+void sdd_cart_main(uint32_t bios_request) {
+    (void)bios_request; /* 2 = demo, 3 = title after a coin: both open on the title */
     mvs_hw_init();
 
 #ifdef SDD_ART_VIEWER_ONLY

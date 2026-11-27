@@ -46,7 +46,6 @@
 #define INPUT_START      0x0100u
 #define INPUT_SELECT     0x0200u
 #define INPUT_COIN       0x0400u
-#define INPUT_TEST       0x0800u
 
 #ifndef SDD_HOST_TEST
 /* Real 68000 Memory-Mapped Registers on Neo Geo MVS */
@@ -70,12 +69,19 @@
 #define REG_IRQACK       (*(volatile uint16_t       *)0x3C000Cu)
 
 #define MVS_PALETTE_RAM  ((volatile uint16_t *)0x400000u)
+
+/* BIOS work RAM and backup RAM used by the credit/start contract */
+#define BIOS_USER_MODE       (*(volatile uint8_t       *)0x10FDAFu)
+#define BRAM_P1_CREDITS_BCD  (*(volatile const uint8_t *)0xD00034u)
+#define BIOS_USER_MODE_DEMO  1u
+#define BIOS_USER_MODE_GAME  2u
 #else
 /* Host Native Unit-Test Mock Backing Buffers */
 extern uint16_t g_mock_vram[0x8800];
 extern uint16_t g_mock_palette_ram[256 * 16];
 extern uint8_t  g_mock_last_sound_cmd;
 extern uint32_t g_mock_watchdog_kicks;
+extern uint8_t  g_mock_credits;
 #endif
 
 typedef struct {
@@ -103,6 +109,18 @@ void mvs_load_palettes(const uint16_t palettes[256][16]);
 void mvs_set_palette_16(uint8_t pal_id, const uint16_t words[16]);
 void mvs_poll_inputs(void);
 void mvs_snd_send(uint8_t cmd);
+
+/* MVS credit/start contract (BIOS owns coins and credits; see crt0_mvs.S) */
+#define MVS_START_P1 0x01u
+#define MVS_START_P2 0x02u
+extern volatile uint8_t g_bios_start_req;  /* players accepted by PLAYER_START */
+extern volatile uint8_t g_start_accept;    /* non-zero while a start may be accepted */
+extern volatile uint8_t g_coin_sound_cmd;  /* Z80 command sent by COIN_SOUND */
+uint8_t mvs_credits(void);                 /* credits held by the BIOS, 0..99 */
+void    mvs_set_start_accept(bool accept);
+uint8_t mvs_take_start_request(void);      /* returns MVS_START_* bits once */
+void    mvs_set_in_game(bool in_game);     /* BIOS_USER_MODE: game vs demo/title */
+void    sdd_crash_report(uint32_t vector, const uint16_t *frame);
 
 /* Shadow Sprite & FIX Layer Staging API (flushed atomically during VBlank) */
 void     mvs_sprites_begin(void);
