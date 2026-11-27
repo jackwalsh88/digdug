@@ -11,6 +11,9 @@ static uint8_t s_stem_mask    = 0x00u;
 void sdd_audio_init(void) {
     s_active_suite = 0xFFu;
     s_stem_mask    = 0x00u;
+    /* The Z80 may still be idling in RAM after the BIOS mapped the cartridge
+     * M1 ROM; command $03 (re)starts the driver from its reset entry. */
+    mvs_snd_send(SND_CMD_RESET_DRIVER);
     mvs_snd_send(SND_CMD_SILENCE_ALL);
 }
 

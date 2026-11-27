@@ -17,7 +17,10 @@ static void recompute_tile_mask(uint8_t tx, uint8_t ty) {
     if (g_world.cells[cy][cx + 1u])    mask |= QUAD_NE;
     if (g_world.cells[cy + 1u][cx])    mask |= QUAD_SW;
     if (g_world.cells[cy + 1u][cx + 1u]) mask |= QUAD_SE;
-    g_world.tile_mask[ty][tx] = mask;
+    if (g_world.tile_mask[ty][tx] != mask) {
+        g_world.tile_mask[ty][tx] = mask;
+        g_world.dirty_cols |= (uint16_t)(1u << tx);
+    }
 }
 
 static void recompute_all_masks(void) {
@@ -26,6 +29,7 @@ static void recompute_all_masks(void) {
             recompute_tile_mask(tx, ty);
         }
     }
+    g_world.dirty_cols = (uint16_t)((1u << WORLD_TILES_W) - 1u);
 }
 
 uint8_t sdd_world_stratum_for_y(int16_t py) {
@@ -96,6 +100,7 @@ void sdd_world_carve_tile_box(uint8_t tx, uint8_t ty, uint8_t w_tiles, uint8_t h
                 g_world.cells[y * 2u + 1u][x * 2u]    = 0u;
                 g_world.cells[y * 2u + 1u][x * 2u + 1u] = 0u;
                 g_world.tile_mask[y][x] = 0u;
+                g_world.dirty_cols |= (uint16_t)(1u << x);
             }
         }
     }

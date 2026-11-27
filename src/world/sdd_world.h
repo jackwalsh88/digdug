@@ -66,6 +66,8 @@ typedef struct {
     uint8_t  cells[WORLD_CELLS_H][WORLD_CELLS_W];
     /* Cached 4-bit quadrant mask (0x00..0x0F) per 16x16 visual tile */
     uint8_t  tile_mask[WORLD_TILES_H][WORLD_TILES_W];
+    /* Bit n set = tile column n changed since the renderer last consumed it */
+    uint16_t dirty_cols;
     uint16_t round_num;          /* 1..255 (wraps safely after 255 -> 240 loop) */
     uint8_t  rocks_dropped;      /* Counts rocks shattered this round (2 -> spawns bonus veggie!) */
     bool     veggie_spawned;

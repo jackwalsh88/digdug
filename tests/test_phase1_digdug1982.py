@@ -187,7 +187,8 @@ class TestPhase1DigDug1982Replica(unittest.TestCase):
         self.assertEqual(len(m1), 128 * 1024)
         self.assertEqual(m1[0], 0xF3)              # $0000: DI
         self.assertEqual(m1[0x38:0x3A], b"\xED\x4D")  # $0038: RETI
-        self.assertEqual(m1[0x66:0x68], b"\xF5\xE5")  # $0066: PUSH AF ; PUSH HL
+        self.assertEqual(m1[0x66:0x68], b"\xF5\xC5")  # $0066: PUSH AF ; PUSH BC
+        self.assertEqual(m1[CUE_TABLE_ADDR - 1], 51)   # cue count read by the driver
 
         manifest = json.loads((ROOT / "assets/generated/asset_manifest.json").read_text())
         for idx, cue in enumerate(manifest["audio_cues"]):

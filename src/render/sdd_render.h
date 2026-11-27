@@ -18,6 +18,7 @@ void sdd_render_draw_side_hud(
 );
 
 void sdd_render_playfield_and_actors(void);
+void sdd_render_hide_playfield(void); /* title, viewer: hide the terrain layer */
 void sdd_render_draw_frame_desc(uint16_t global_frame_idx, int16_t anchor_x, int16_t anchor_y, uint8_t pal_override, bool hflip);
 
 #endif /* SDD_RENDER_H */

@@ -36,6 +36,24 @@ void sdd_render_draw_side_hud(
     uint16_t round_num,
     uint8_t  credits
 ) {
+    /* The panel is redrawn only when a displayed value or the FIX layer changed. */
+    static struct {
+        uint32_t p1, p2, high;
+        uint16_t round, generation;
+        uint8_t  active, two, lives, credits, valid;
+    } cache;
+    if (cache.valid && cache.generation == g_fix_generation &&
+        cache.p1 == p1_score && cache.p2 == p2_score && cache.high == g_high_score &&
+        cache.round == round_num && cache.active == active_player &&
+        cache.two == (uint8_t)two_player_game && cache.lives == lives_remaining &&
+        cache.credits == credits) {
+        return;
+    }
+    cache.p1 = p1_score;       cache.p2 = p2_score;      cache.high = g_high_score;
+    cache.round = round_num;   cache.generation = g_fix_generation;
+    cache.active = active_player; cache.two = (uint8_t)two_player_game;
+    cache.lives = lives_remaining; cache.credits = credits; cache.valid = 1u;
+
     /* Vertical divider column 28 and clean 11-column HUD panel (cols 29..39) */
     for (uint8_t r = FIX_VISIBLE_ROW_TOP; r <= FIX_VISIBLE_ROW_BOT; ++r) {
         mvs_fix_put(SIDE_HUD_FIX_COL_MIN, r, '|', PAL_FIX_GOLD);
@@ -88,20 +106,37 @@ void sdd_render_draw_side_hud(
     mvs_fix_print_u32(36u, 27u, 2u, PAL_FIX_TEXT, credits);
 }
 
+static bool s_playfield_valid = false;
+
+void sdd_render_hide_playfield(void) {
+    mvs_bg_show(false);
+    s_playfield_valid = false;
+}
+
 void sdd_render_playfield_and_actors(void) {
     uint16_t top_first = sdd_families[FAM_TILE_TOPSOIL].first_frame;
     uint16_t occ_base  = (uint16_t)(top_first + 6u); /* occupancy_v1_00..0f */
     uint16_t surf_trim = sdd_frames[top_first + 3u].c_tile_base; /* green_grass_surface_cap */
 
-    /* 1. 14 vertical 16x224 background terrain sprite strips (x = 0..223) */
-    for (uint8_t tx = 0u; tx < WORLD_TILES_W; ++tx) {
+    /* 1. Terrain: 14 persistent 16x224 background columns; only columns the
+     *    world marked dirty (or all of them after the layer was hidden) are rebuilt. */
+    uint16_t dirty = g_world.dirty_cols;
+    if (!s_playfield_valid) {
+        dirty = (uint16_t)((1u << WORLD_TILES_W) - 1u);
+        s_playfield_valid = true;
+    }
+    g_world.dirty_cols = 0u;
+    for (uint8_t tx = 0u; dirty != 0u && tx < WORLD_TILES_W; ++tx) {
+        if (!(dirty & (uint16_t)(1u << tx))) {
+            continue;
+        }
         uint16_t col_tiles[WORLD_TILES_H];
         uint8_t  col_pals[WORLD_TILES_H];
 
         for (uint8_t ty = 0u; ty < WORLD_TILES_H; ++ty) {
             uint8_t mask = g_world.tile_mask[ty][tx];
             if (ty == 0u) {
-                /* Surface row: completely open sky; draw subtle grass trim above intact column 1 dirt */
+                /* Surface row: open sky; grass trim above intact row-1 dirt */
                 if (g_world.tile_mask[1][tx] == QUAD_FULL && tx != 6u && tx != 0u) {
                     col_tiles[ty] = surf_trim;
                     col_pals[ty]  = PAL_DD1982_SURFACE;
@@ -114,17 +149,9 @@ void sdd_render_playfield_and_actors(void) {
                 col_pals[ty]  = sdd_world_palette_for_tile_row(ty);
             }
         }
-
-        mvs_alloc_sprite_strip(
-            (int16_t)((int16_t)tx * 16),
-            0,
-            WORLD_TILES_H,
-            (tx > 0u),
-            col_tiles,
-            col_pals,
-            0u
-        );
+        mvs_bg_set_column(tx, col_tiles, col_pals, WORLD_TILES_H);
     }
+    mvs_bg_show(true);
 
     /* 2. Bonus Vegetable in central chamber */
     if (g_veggie.active) {

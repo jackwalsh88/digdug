@@ -34,6 +34,8 @@ void sdd_art_viewer_init(void) {
     s_auto_play  = true;
     s_show_masks = false;
     s_anim_div   = 0u;
+    g_frame_stats_enabled = true;
+    sdd_render_hide_playfield();
     mvs_fix_clear_all();
     sdd_audio_stop_all();
 }
@@ -126,6 +128,8 @@ bool sdd_art_viewer_tick_and_render(void) {
         }
     }
 
+    mvs_frame_stats_update();
+
     /* FIX Overlay Diagnostics */
     mvs_fix_print(2u, 3u, PAL_FIX_GOLD, "SUPER DIG DUG M0/B0 ART VIEWER");
     mvs_fix_print(2u, 5u, PAL_FIX_P1,   "FAMILY:");
@@ -151,6 +155,9 @@ bool sdd_art_viewer_tick_and_render(void) {
     mvs_fix_print_u32(11u, 25u, 8u, PAL_FIX_TEXT, g_vblank_counter);
     mvs_fix_print(21u, 25u, PAL_FIX_GOLD, "STRIPS:");
     mvs_fix_print_u32(29u, 25u, 2u, PAL_FIX_TEXT, g_frame_stats.worst_scanline_strips);
+
+    mvs_fix_print(2u, 26u, PAL_FIX_GOLD, "MISSED :");
+    mvs_fix_print_u32(11u, 26u, 8u, PAL_FIX_TEXT, g_missed_frames);
 
     mvs_fix_print(2u, 27u, PAL_FIX_GOLD, "INPUT  :");
     mvs_fix_print_u32(11u, 27u, 5u, PAL_FIX_TEXT, g_input.held[0]);

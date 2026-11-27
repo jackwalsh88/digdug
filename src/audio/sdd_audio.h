@@ -9,6 +9,7 @@
 #include "../../assets/generated/sdd_assets.h"
 
 /* Z80 Command Byte Protocol (written to REG_SOUND $320000) */
+#define SND_CMD_RESET_DRIVER     0x03u   /* BIOS-defined: restart the Z80 driver */
 #define SND_CMD_SILENCE_ALL      0x07u
 #define SND_CMD_SUITE_TOPSOIL    0x10u
 #define SND_CMD_SUITE_BOSS       0x11u

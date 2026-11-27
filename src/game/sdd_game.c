@@ -31,6 +31,8 @@ static void start_player_round(bool fresh_round) {
 
 static void enter_title(void) {
     mvs_set_in_game(false);
+    g_frame_stats_enabled = false;
+    sdd_render_hide_playfield();
     g_game.mode       = GAME_MODE_TITLE;
     g_game.mode_timer = 360u;
     mvs_fix_clear_all();

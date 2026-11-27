@@ -255,7 +255,12 @@ def partition_scene_palettes(
     return final_pals, assignments
 
 
-# --- YM2610 ADPCM-A (OKI MSM6295 / JEDI 12-bit 49-step table, 18.5 kHz) ---
+# --- YM2610 ADPCM-A (12-bit, 49-step table, 18.5 kHz) ---
+# Matches the decoder MAME uses for the YM2610 (ymfm adpcm_a_channel::clock):
+#   delta = (2 * (nibble & 7) + 1) * step / 8, negated when bit 3 is set;
+#   the 12-bit accumulator wraps (it does not saturate), so the encoder must
+#   keep its predictor inside [-2048, 2047];
+#   step index += {-1, -1, -1, -1, 2, 5, 7, 9}[nibble & 7], clamped to 0..48.
 
 _JEDI_STEP_SIZE = [
     16, 17, 19, 21, 23, 25, 28, 31, 34, 37,
@@ -265,7 +270,7 @@ _JEDI_STEP_SIZE = [
     724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552,
 ]
 
-_JEDI_INDEX_ADJ = [-1, -1, -1, -1, 2, 4, 6, 8]
+_JEDI_INDEX_ADJ = [-1, -1, -1, -1, 2, 5, 7, 9]
 
 
 def read_wav_mono16(wav_bytes: bytes) -> tuple[int, list[int]]:
@@ -309,37 +314,28 @@ def resample_linear(samples: list[int], src_hz: int, dst_hz: int) -> list[int]:
     return out
 
 
+def _adpcm_a_delta(nibble: int, step: int) -> int:
+    delta = ((2 * (nibble & 7) + 1) * step) // 8
+    return -delta if (nibble & 8) else delta
+
+
 def _encode_adpcm_a_nibble(sample12: int, state: list[int]) -> int:
     pred, step_idx = state
     step = _JEDI_STEP_SIZE[step_idx]
     diff = sample12 - pred
-    nibble = 8 if diff < 0 else 0
-    if diff < 0:
-        diff = -diff
-    if diff >= step:
-        nibble |= 4
-        diff -= step
-    if diff >= (step >> 1):
-        nibble |= 2
-        diff -= step >> 1
-    if diff >= (step >> 2):
-        nibble |= 1
-
-    # Reconstruct exact hardware 12-bit predictor
-    delta = (
-        ((step * ((nibble & 4) != 0)))
-        + ((step >> 1) * ((nibble & 2) != 0))
-        + ((step >> 2) * ((nibble & 1) != 0))
-        + (step >> 3)
-    )
-    if nibble & 8:
-        pred -= delta
-    else:
-        pred += delta
-    pred = max(-2048, min(2047, pred))
-    step_idx = max(0, min(48, step_idx + _JEDI_INDEX_ADJ[nibble & 7]))
-    state[0] = pred
-    state[1] = step_idx
+    sign = 8 if diff < 0 else 0
+    mag = min(7, (abs(diff) * 4) // step)
+    nibble = sign | mag
+    # The hardware accumulator wraps at 12 bits: back off until the result fits.
+    while mag > 0 and not (-2048 <= pred + _adpcm_a_delta(nibble, step) <= 2047):
+        mag -= 1
+        nibble = sign | mag
+    new_pred = pred + _adpcm_a_delta(nibble, step)
+    if not (-2048 <= new_pred <= 2047):
+        nibble ^= 8  # smallest step in the other direction always fits
+        new_pred = pred + _adpcm_a_delta(nibble, step)
+    state[0] = new_pred
+    state[1] = max(0, min(48, step_idx + _JEDI_INDEX_ADJ[nibble & 7]))
     return nibble & 0x0F
 
 
@@ -365,21 +361,14 @@ def encode_ym2610_adpcm_a(pcm16_18500: list[int], pad_align: int = 256) -> bytes
 
 
 def decode_ym2610_adpcm_a(adpcm_bytes: bytes) -> list[int]:
-    """Decode YM2610 ADPCM-A bytes back to 16-bit signed PCM samples."""
-    pred = 0
+    """Decode YM2610 ADPCM-A bytes to 16-bit signed PCM exactly as the chip does."""
+    acc = 0
     step_idx = 0
     out: list[int] = []
     for b in adpcm_bytes:
         for nibble in ((b >> 4) & 0x0F, b & 0x0F):
-            step = _JEDI_STEP_SIZE[step_idx]
-            delta = (
-                (step if (nibble & 4) else 0)
-                + ((step >> 1) if (nibble & 2) else 0)
-                + ((step >> 2) if (nibble & 1) else 0)
-                + (step >> 3)
-            )
-            pred = pred - delta if (nibble & 8) else pred + delta
-            pred = max(-2048, min(2047, pred))
+            acc = (acc + _adpcm_a_delta(nibble, _JEDI_STEP_SIZE[step_idx])) & 0xFFF
             step_idx = max(0, min(48, step_idx + _JEDI_INDEX_ADJ[nibble & 7]))
-            out.append(pred << 4)
+            signed = acc - 0x1000 if acc & 0x800 else acc
+            out.append(signed << 4)
     return out

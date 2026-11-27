@@ -25,6 +25,10 @@
 #define MVS_SPRITE_STRIPS_HW_MAX     96u
 #define MVS_SPRITE_STRIPS_ENG_MAX    84u
 
+/* Persistent background layer: hardware sprites 1..MVS_BG_COLUMNS */
+#define MVS_BG_COLUMNS       14u
+#define MVS_BG_MAX_TILES     16u
+
 /* LSPC2 VRAM Word Addresses */
 #define VRAM_SCB1_BASE   0x0000u   /* 64 words per sprite (32 vertical tiles x 2 words) */
 #define VRAM_FIX_BASE    0x7000u   /* 40 cols x 32 rows, column-major */
@@ -101,6 +105,9 @@ typedef struct {
 extern volatile uint32_t g_vblank_counter;
 extern mvs_input_state_t g_input;
 extern mvs_frame_stats_t g_frame_stats;
+extern bool              g_frame_stats_enabled; /* gather per-scanline strip counts */
+extern volatile uint32_t g_missed_frames;       /* VBlanks a tick overran */
+extern uint16_t          g_fix_generation;      /* bumped by mvs_fix_clear_all() */
 
 void mvs_hw_init(void);
 void mvs_kick_watchdog(void);
@@ -108,7 +115,8 @@ void mvs_wait_vblank(void);
 void mvs_load_palettes(const uint16_t palettes[256][16]);
 void mvs_set_palette_16(uint8_t pal_id, const uint16_t words[16]);
 void mvs_poll_inputs(void);
-void mvs_snd_send(uint8_t cmd);
+void mvs_snd_send(uint8_t cmd);  /* queue a Z80 command */
+void mvs_snd_pump(void);          /* release one queued command (once per VBlank) */
 
 /* MVS credit/start contract (BIOS owns coins and credits; see crt0_mvs.S) */
 #define MVS_START_P1 0x01u
@@ -124,6 +132,9 @@ void    sdd_crash_report(uint32_t vector, const uint16_t *frame);
 
 /* Shadow Sprite & FIX Layer Staging API (flushed atomically during VBlank) */
 void     mvs_sprites_begin(void);
+void     mvs_frame_stats_update(void);
+void     mvs_bg_set_column(uint8_t col, const uint16_t *c_tiles, const uint8_t *palettes, uint8_t height_tiles);
+void     mvs_bg_show(bool visible);
 uint16_t mvs_alloc_sprite_strip(
     int16_t x,
     int16_t y,

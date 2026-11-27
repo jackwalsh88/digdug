@@ -90,7 +90,11 @@ int main(void) {
     sdd_render_playfield_and_actors();
     sdd_render_draw_side_hud(2500u, 0u, 0u, false, 3u, 1u, 1u);
     mvs_video_commit_vblank();
+    mvs_frame_stats_update();
+    assert(g_frame_stats.worst_scanline_strips >= MVS_BG_COLUMNS); /* terrain layer counted */
     assert(g_frame_stats.worst_scanline_strips <= MVS_SPRITE_STRIPS_ENG_MAX);
+    /* Terrain column 0 row 1 reaches VRAM through the persistent background layer */
+    assert(g_mock_vram[VRAM_SCB1_BASE + 1u * 64u + 2u] != 0u);
 
     sdd_art_viewer_init();
     (void)sdd_art_viewer_tick_and_render();

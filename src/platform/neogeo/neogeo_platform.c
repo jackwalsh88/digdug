@@ -21,8 +21,14 @@ volatile uint8_t g_start_accept   = 0u;
 volatile uint8_t g_coin_sound_cmd = 0u;
 #endif
 
-/* Shadow buffers in 68000 Work RAM (flushed during VBlank) */
+/* Shadow buffers in 68000 work RAM (flushed during VBlank).
+ *
+ * Hardware sprites 1..MVS_BG_COLUMNS form a persistent background layer whose
+ * tile maps are rewritten only for columns marked dirty. Per-frame (dynamic)
+ * strips follow at hardware sprite MVS_BG_COLUMNS + 1 and draw above it.
+ */
 #define SHADOW_MAX_SPRITES 160u
+#define DYN_SPRITE_BASE    MVS_BG_COLUMNS
 
 typedef struct {
     uint16_t scb1[32];  /* Up to 16 vertical tiles (256px) x 2 words */
@@ -38,22 +44,51 @@ static uint16_t        s_prev_sprite_count = 0u;
 static uint16_t        s_fix_shadow[40][32];
 static uint8_t         s_fix_dirty_col[40];
 
-static inline void vram_write_block(uint16_t addr, int16_t mod, const uint16_t *words, uint16_t count) {
-#ifndef SDD_HOST_TEST
-    REG_VRAMMOD = mod;
-    REG_VRAMADDR = addr;
-    for (uint16_t i = 0u; i < count; ++i) {
-        REG_VRAMRW = words[i];
-    }
+static uint16_t        s_bg_scb1[MVS_BG_COLUMNS][MVS_BG_MAX_TILES * 2u];
+static uint16_t        s_bg_dirty = 0u;       /* bit n = column n needs its SCB1 rewritten */
+static uint8_t         s_bg_height = 0u;
+static bool            s_bg_visible = false;
+static bool            s_bg_ctrl_dirty = true; /* SCB2..SCB4 of the layer need rewriting */
+
+static int8_t          s_strip_delta[MVS_SCREEN_H + 1];
+static uint32_t        s_last_frame = 0u;
+
+volatile uint32_t g_missed_frames = 0u;
+uint16_t          g_fix_generation = 0u;
+#ifdef SDD_HOST_TEST
+bool              g_frame_stats_enabled = true;
+static uint16_t   s_mock_vram_cursor = 0u;
+static int16_t    s_mock_vram_mod = 1;
 #else
-    uint16_t cur = addr;
-    for (uint16_t i = 0u; i < count; ++i) {
-        if (cur < 0x8800u) {
-            g_mock_vram[cur] = words[i];
-        }
-        cur = (uint16_t)(cur + (uint16_t)mod);
-    }
+bool              g_frame_stats_enabled = false;
 #endif
+
+static inline void vram_begin(uint16_t addr, int16_t mod) {
+#ifndef SDD_HOST_TEST
+    REG_VRAMMOD  = mod;
+    REG_VRAMADDR = addr;
+#else
+    s_mock_vram_cursor = addr;
+    s_mock_vram_mod    = mod;
+#endif
+}
+
+static inline void vram_put(uint16_t word) {
+#ifndef SDD_HOST_TEST
+    REG_VRAMRW = word;
+#else
+    if (s_mock_vram_cursor < 0x8800u) {
+        g_mock_vram[s_mock_vram_cursor] = word;
+    }
+    s_mock_vram_cursor = (uint16_t)(s_mock_vram_cursor + (uint16_t)s_mock_vram_mod);
+#endif
+}
+
+static void vram_write_block(uint16_t addr, int16_t mod, const uint16_t *words, uint16_t count) {
+    vram_begin(addr, mod);
+    for (uint16_t i = 0u; i < count; ++i) {
+        vram_put(words[i]);
+    }
 }
 
 void mvs_kick_watchdog(void) {
@@ -74,16 +109,26 @@ void mvs_hw_init(void) {
     mvs_load_palettes(sdd_palettes);
     mvs_fix_clear_all();
     s_sprite_count = 0u;
-    s_prev_sprite_count = MVS_MAX_SPRITES;
+    s_prev_sprite_count = (uint16_t)(MVS_MAX_SPRITES - DYN_SPRITE_BASE);
+    s_bg_visible = false;
+    s_bg_ctrl_dirty = true;
+    s_bg_dirty = 0u;
     mvs_video_commit_vblank();
+    s_last_frame = g_vblank_counter;
 }
 
 void mvs_wait_vblank(void) {
 #ifndef SDD_HOST_TEST
-    uint32_t start = g_vblank_counter;
-    while (g_vblank_counter == start) {
+    uint32_t now = g_vblank_counter;
+    if (now != s_last_frame) {
+        /* The tick overran one or more VBlanks: record it, then resynchronise
+         * on the next one so VRAM commits stay inside vertical blanking. */
+        g_missed_frames += (now - s_last_frame);
+    }
+    while (g_vblank_counter == now) {
         mvs_kick_watchdog();
     }
+    s_last_frame = g_vblank_counter;
 #else
     ++g_vblank_counter;
     mvs_kick_watchdog();
@@ -161,12 +206,34 @@ void mvs_poll_inputs(void) {
 #endif
 }
 
+/* Sound commands are queued and released one per VBlank: each write to
+ * REG_SOUND raises a Z80 NMI, and a second write before the driver has read
+ * the latch would overwrite the first command. */
+#define SND_FIFO_SIZE 32u
+static uint8_t s_snd_fifo[SND_FIFO_SIZE];
+static uint8_t s_snd_head = 0u;
+static uint8_t s_snd_tail = 0u;
+
 void mvs_snd_send(uint8_t cmd) {
-#ifndef SDD_HOST_TEST
-    REG_SOUND = cmd;
-#else
+#ifdef SDD_HOST_TEST
     g_mock_last_sound_cmd = cmd;
 #endif
+    uint8_t next = (uint8_t)((s_snd_head + 1u) % SND_FIFO_SIZE);
+    if (next == s_snd_tail) {
+        return; /* queue full: drop the newest command */
+    }
+    s_snd_fifo[s_snd_head] = cmd;
+    s_snd_head = next;
+}
+
+void mvs_snd_pump(void) {
+    if (s_snd_tail == s_snd_head) {
+        return;
+    }
+#ifndef SDD_HOST_TEST
+    REG_SOUND = s_snd_fifo[s_snd_tail];
+#endif
+    s_snd_tail = (uint8_t)((s_snd_tail + 1u) % SND_FIFO_SIZE);
 }
 
 uint8_t mvs_credits(void) {
@@ -225,7 +292,8 @@ void sdd_crash_report(uint32_t vector, const uint16_t *frame) {
     mvs_load_palettes(sdd_palettes);
     mvs_fix_clear_all();
     s_sprite_count = 0u;
-    s_prev_sprite_count = MVS_MAX_SPRITES;
+    s_prev_sprite_count = (uint16_t)(MVS_MAX_SPRITES - DYN_SPRITE_BASE);
+    mvs_bg_show(false);
     mvs_fix_print(4u, 10u, PAL_FIX_DANGER, "CPU EXCEPTION");
     mvs_fix_print(4u, 12u, PAL_FIX_GOLD, "VECTOR");
     crash_put_hex(12u, 12u, vector, 2u);
@@ -242,10 +310,54 @@ void sdd_crash_report(uint32_t vector, const uint16_t *frame) {
 
 void mvs_sprites_begin(void) {
     s_sprite_count = 0u;
-    g_frame_stats.sprites_used = 0u;
-    g_frame_stats.worst_scanline_strips = 0u;
+    if (g_frame_stats_enabled) {
+        for (uint16_t y = 0u; y <= MVS_SCREEN_H; ++y) {
+            s_strip_delta[y] = 0;
+        }
+    }
+}
+
+/* Resolve the per-scanline strip counts gathered since mvs_sprites_begin().
+ * Only meaningful while g_frame_stats_enabled is set (viewer, host tests). */
+void mvs_frame_stats_update(void) {
+    int16_t  acc = 0;
+    uint8_t  worst = 0u;
+    uint16_t bg_lines = s_bg_visible ? (uint16_t)(s_bg_height * 16u) : 0u;
     for (uint16_t y = 0u; y < MVS_SCREEN_H; ++y) {
-        g_frame_stats.scanline_strips[y] = 0u;
+        acc = (int16_t)(acc + s_strip_delta[y]);
+        uint8_t n = (uint8_t)(acc + ((y < bg_lines) ? (int16_t)MVS_BG_COLUMNS : 0));
+        g_frame_stats.scanline_strips[y] = n;
+        if (n > worst) {
+            worst = n;
+        }
+    }
+    g_frame_stats.worst_scanline_strips = worst;
+    g_frame_stats.sprites_used = (uint16_t)(s_sprite_count + (s_bg_visible ? MVS_BG_COLUMNS : 0u));
+}
+
+void mvs_bg_set_column(uint8_t col, const uint16_t *c_tiles, const uint8_t *palettes, uint8_t height_tiles) {
+    if (col >= MVS_BG_COLUMNS) {
+        return;
+    }
+    if (height_tiles > MVS_BG_MAX_TILES) {
+        height_tiles = MVS_BG_MAX_TILES;
+    }
+    uint16_t *dst = s_bg_scb1[col];
+    for (uint8_t t = 0u; t < height_tiles; ++t) {
+        *dst++ = c_tiles[t];
+        *dst++ = (uint16_t)((uint16_t)palettes[t] << 8);
+    }
+    if (s_bg_height != height_tiles) {
+        s_bg_height = height_tiles;
+        s_bg_ctrl_dirty = true;
+    }
+    s_bg_dirty |= (uint16_t)(1u << col);
+}
+
+void mvs_bg_show(bool visible) {
+    if (s_bg_visible != visible) {
+        s_bg_visible = visible;
+        s_bg_ctrl_dirty = true;
     }
 }
 
@@ -258,7 +370,7 @@ uint16_t mvs_alloc_sprite_strip(
     const uint8_t  *palettes,
     uint8_t flip_flags
 ) {
-    /* Hardware sprite 0 is avoided because sticky chaining references previous sprite; start at slot 1 */
+    /* Slot 0 is unused; dynamic strip n maps to hardware sprite DYN_SPRITE_BASE + n */
     if (height_tiles == 0u || s_sprite_count >= (SHADOW_MAX_SPRITES - 1u)) {
         return 0u;
     }
@@ -283,19 +395,17 @@ uint16_t mvs_alloc_sprite_strip(
         sp->scb1[t * 2u + 1u] = (uint16_t)(((uint16_t)pal << 8) | (flip_flags & 0x03u));
     }
 
-    /* Update scanline strip budget telemetry */
-    int16_t y0 = y < 0 ? 0 : y;
-    int16_t y1 = (int16_t)(y + (int16_t)height_tiles * 16);
-    if (y1 > MVS_SCREEN_H) {
-        y1 = MVS_SCREEN_H;
-    }
-    for (int16_t sy = y0; sy < y1; ++sy) {
-        uint8_t c = ++g_frame_stats.scanline_strips[sy];
-        if (c > g_frame_stats.worst_scanline_strips) {
-            g_frame_stats.worst_scanline_strips = c;
+    if (g_frame_stats_enabled) {
+        int16_t y0 = y < 0 ? 0 : y;
+        int16_t y1 = (int16_t)(y + (int16_t)height_tiles * 16);
+        if (y1 > MVS_SCREEN_H) {
+            y1 = MVS_SCREEN_H;
+        }
+        if (y0 < y1) {
+            ++s_strip_delta[y0];
+            --s_strip_delta[y1];
         }
     }
-    g_frame_stats.sprites_used = s_sprite_count;
     return idx;
 }
 
@@ -345,6 +455,7 @@ void mvs_fix_clear_all(void) {
         }
         s_fix_dirty_col[col] = 1u;
     }
+    ++g_fix_generation;
 }
 
 void mvs_fix_put(uint8_t col, uint8_t row, uint16_t s_tile_id, uint8_t fix_pal_id) {
@@ -396,52 +507,70 @@ void mvs_fix_print_u32(uint8_t col, uint8_t row, uint8_t width, uint8_t fix_pal_
 
 void mvs_video_commit_vblank(void) {
     mvs_kick_watchdog();
+    mvs_snd_pump();
 
-    /* 1. Flush active sprite SCB1, SCB2, SCB3, SCB4 words */
-    uint16_t scb2_buf[SHADOW_MAX_SPRITES];
-    uint16_t scb3_buf[SHADOW_MAX_SPRITES];
-    uint16_t scb4_buf[SHADOW_MAX_SPRITES];
+    /* 1. Background layer: tile maps of dirty columns, then its control words */
+    if (s_bg_dirty != 0u) {
+        for (uint8_t col = 0u; col < MVS_BG_COLUMNS; ++col) {
+            if (s_bg_dirty & (uint16_t)(1u << col)) {
+                vram_write_block(
+                    (uint16_t)(VRAM_SCB1_BASE + (uint16_t)(1u + col) * 64u), 1,
+                    s_bg_scb1[col], (uint16_t)(s_bg_height * 2u)
+                );
+            }
+        }
+        s_bg_dirty = 0u;
+    }
+    if (s_bg_ctrl_dirty) {
+        uint16_t scb3 = s_bg_visible ? (uint16_t)(((496u & 0x01FFu) << 7) | (s_bg_height & 0x3Fu)) : 0u;
+        vram_begin((uint16_t)(VRAM_SCB2_BASE + 1u), 1);
+        for (uint8_t col = 0u; col < MVS_BG_COLUMNS; ++col) {
+            vram_put(SCB2_NO_SHRINK);
+        }
+        vram_begin((uint16_t)(VRAM_SCB3_BASE + 1u), 1);
+        for (uint8_t col = 0u; col < MVS_BG_COLUMNS; ++col) {
+            vram_put((s_bg_visible && col > 0u) ? (uint16_t)(scb3 | 0x0040u) : scb3);
+        }
+        vram_begin((uint16_t)(VRAM_SCB4_BASE + 1u), 1);
+        for (uint8_t col = 0u; col < MVS_BG_COLUMNS; ++col) {
+            vram_put((uint16_t)(((uint16_t)col * 16u) << 7));
+        }
+        s_bg_ctrl_dirty = false;
+    }
 
-    scb2_buf[0] = SCB2_NO_SHRINK;
-    scb3_buf[0] = 0u;
-    scb4_buf[0] = 0u;
-
+    /* 2. Dynamic strips: SCB1 tile maps, then SCB2..SCB4 as three runs */
     for (uint16_t i = 1u; i <= s_sprite_count; ++i) {
         const shadow_sprite_t *sp = &s_sprites[i];
-        vram_write_block((uint16_t)(VRAM_SCB1_BASE + i * 64u), 1, sp->scb1, (uint16_t)(sp->height_tiles * 2u));
-        scb2_buf[i] = sp->scb2;
-        scb3_buf[i] = sp->scb3;
-        scb4_buf[i] = sp->scb4;
+        vram_write_block(
+            (uint16_t)(VRAM_SCB1_BASE + (DYN_SPRITE_BASE + i) * 64u), 1,
+            sp->scb1, (uint16_t)(sp->height_tiles * 2u)
+        );
     }
-
     if (s_sprite_count > 0u) {
-        vram_write_block(VRAM_SCB2_BASE, 1, scb2_buf, (uint16_t)(s_sprite_count + 1u));
-        vram_write_block(VRAM_SCB3_BASE, 1, scb3_buf, (uint16_t)(s_sprite_count + 1u));
-        vram_write_block(VRAM_SCB4_BASE, 1, scb4_buf, (uint16_t)(s_sprite_count + 1u));
+        vram_begin((uint16_t)(VRAM_SCB2_BASE + DYN_SPRITE_BASE + 1u), 1);
+        for (uint16_t i = 1u; i <= s_sprite_count; ++i) {
+            vram_put(s_sprites[i].scb2);
+        }
+        vram_begin((uint16_t)(VRAM_SCB3_BASE + DYN_SPRITE_BASE + 1u), 1);
+        for (uint16_t i = 1u; i <= s_sprite_count; ++i) {
+            vram_put(s_sprites[i].scb3);
+        }
+        vram_begin((uint16_t)(VRAM_SCB4_BASE + DYN_SPRITE_BASE + 1u), 1);
+        for (uint16_t i = 1u; i <= s_sprite_count; ++i) {
+            vram_put(s_sprites[i].scb4);
+        }
     }
 
-    /* Zero height in SCB3 for any sprites retired since last frame */
+    /* Zero the height of dynamic strips retired since the previous frame */
     if (s_prev_sprite_count > s_sprite_count) {
-        uint16_t zero = 0u;
-        uint16_t max_clear = s_prev_sprite_count;
-        if (max_clear > MVS_MAX_SPRITES) {
-            max_clear = MVS_MAX_SPRITES;
+        vram_begin((uint16_t)(VRAM_SCB3_BASE + DYN_SPRITE_BASE + s_sprite_count + 1u), 1);
+        for (uint16_t i = s_sprite_count; i < s_prev_sprite_count; ++i) {
+            vram_put(0u);
         }
-#ifndef SDD_HOST_TEST
-        REG_VRAMMOD  = 1;
-        REG_VRAMADDR = (uint16_t)(VRAM_SCB3_BASE + s_sprite_count + 1u);
-        for (uint16_t i = (uint16_t)(s_sprite_count + 1u); i <= max_clear; ++i) {
-            REG_VRAMRW = zero;
-        }
-#else
-        for (uint16_t i = (uint16_t)(s_sprite_count + 1u); i <= max_clear; ++i) {
-            g_mock_vram[VRAM_SCB3_BASE + i] = zero;
-        }
-#endif
     }
     s_prev_sprite_count = s_sprite_count;
 
-    /* 2. Flush dirty FIX columns (column-major: 32 words per column) */
+    /* 3. Dirty FIX columns (column-major: 32 words per column) */
     for (uint8_t col = 0u; col < 40u; ++col) {
         if (s_fix_dirty_col[col]) {
             vram_write_block((uint16_t)(VRAM_FIX_BASE + (uint16_t)col * 32u), 1, s_fix_shadow[col], 32u);
