@@ -2,7 +2,7 @@
  * Super Dig Dug — Playfield Grid, Excavation Masks, and Authentic 1982 Round Generator
  */
 #include "sdd_world.h"
-#include "../../../assets/generated/sdd_assets.h"
+#include "../../assets/generated/sdd_assets.h"
 
 sdd_world_t g_world;
 

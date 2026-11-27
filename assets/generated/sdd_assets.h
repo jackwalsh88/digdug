@@ -221,12 +221,12 @@ typedef enum {
 typedef struct {
     uint16_t c_tile_base;
     int16_t  s_tile_id;   /* -1 if sprite-only */
-    uint8_t  width;
-    uint8_t  height;
+    uint16_t width;
+    uint16_t height;
     uint8_t  cols;
     uint8_t  rows;
-    int8_t   pivot_x;
-    int8_t   pivot_y;
+    int16_t  pivot_x;
+    int16_t  pivot_y;
 } sdd_frame_desc_t;
 
 typedef struct {

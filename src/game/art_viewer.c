@@ -10,7 +10,7 @@
 #include "../audio/sdd_audio.h"
 #include "../platform/neogeo/neogeo_hw.h"
 #include "../render/sdd_render.h"
-#include "../../../assets/generated/sdd_assets.h"
+#include "../../assets/generated/sdd_assets.h"
 
 static uint16_t s_fam_idx    = 55u; /* Default to FAM_CHR_PLAYER_1 */
 static uint16_t s_frame_off  = 0u;

@@ -9,7 +9,7 @@
 #include "../render/sdd_render.h"
 #include "../score/sdd_score.h"
 #include "../world/sdd_world.h"
-#include "../../../assets/generated/sdd_assets.h"
+#include "../../assets/generated/sdd_assets.h"
 
 sdd_game_session_t g_game;
 static sdd_round_def_t s_cur_round_def;

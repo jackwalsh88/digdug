@@ -9,7 +9,7 @@
 #include "../platform/neogeo/neogeo_hw.h"
 #include "../score/sdd_score.h"
 #include "../world/sdd_world.h"
-#include "../../../assets/generated/sdd_assets.h"
+#include "../../assets/generated/sdd_assets.h"
 
 void sdd_render_draw_frame_desc(
     uint16_t global_frame_idx,

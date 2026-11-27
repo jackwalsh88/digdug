@@ -6,7 +6,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "../../../assets/generated/sdd_assets.h"
+#include "../../assets/generated/sdd_assets.h"
 
 /* Z80 Command Byte Protocol (written to REG_SOUND $320000) */
 #define SND_CMD_SILENCE_ALL      0x07u
