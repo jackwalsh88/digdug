@@ -19,6 +19,10 @@ Defects fixed on the way to this result: crt0 did not assemble (unprefixed regis
 
 Known limitations: not run under a commercial BIOS; P2 controls and 2P start not exercised in MAME; hard reset and the test switch not exercised; gameplay values are the prior session's estimates and have not been compared with the 1982 original; a coin on the title resets the RAM high-score table; music stems restart on a polled end flag, so a loop seam of a few milliseconds is possible; stack depth is not instrumented.
 
+### Fidelity pass against the 1982 ROM set (same day)
+
+`tools/extract_dd1982_tables.py` decoded the 15 round layouts and the speed tables from the owner's `digdug.zip`; its self-checks pass (101 of 101 monster starts inside tunnels, no rock in a tunnel, everything on the field). The native C test now asserts round 1 as stored in the ROM, the layout-selection rule, the 3/4/4/2 strata, the player's dig rate (2 px per 4 ticks) and a round-1 Pooka's speed (28–31 px in 60 ticks). In MAME, round 1 shows the original arrangement: Pooka in the top-left vertical tunnel, Pooka top-right, Fygar bottom-left, Pooka bottom-right, three rocks. The original itself was not run: MAME's `digdug` driver reports `51xx.bin` and `53xx.bin` missing. See `docs/Dig-Dug-1982-Replica-Spec.md` Appendix A for what was read and what is still estimated.
+
 Sections below are the earlier host-only report from the previous session, kept for history.
 
 ## 1. Environment Audit

@@ -28,6 +28,24 @@ int main(void) {
     sdd_actors_spawn_round(&def);
     assert(def.enemy_count == 4u);
     assert(def.rock_count == 3u);
+    /* Round 1 as stored in the 1982 ROM: two 5-cell vertical and two 4-cell
+     * horizontal tunnels, 3 Pookas + 1 Fygar (bottom-left), 3 rocks. */
+    assert(def.tunnel_count == 4u);
+    assert(def.enemies[0].kind == ENEMY_KIND_POOKA && def.enemies[0].tx == 1u && def.enemies[0].ty == 2u);
+    assert(def.enemies[3].kind == ENEMY_KIND_FYGAR && def.enemies[3].tx == 3u && def.enemies[3].ty == 10u);
+    assert(sdd_world_tile_is_open(1, 2) && sdd_world_tile_is_open(1, 6));   /* top-left vertical */
+    assert(sdd_world_tile_is_open(9, 2) && sdd_world_tile_is_open(12, 2));  /* top-right horizontal */
+    assert(sdd_world_tile_is_open(2, 10) && sdd_world_tile_is_open(5, 10)); /* bottom-left horizontal */
+    assert(sdd_world_tile_is_open(9, 9) && sdd_world_tile_is_open(9, 13));  /* bottom-right vertical */
+    assert(!sdd_world_tile_is_open(4, 3));                                  /* rock sits in dirt */
+    assert(sdd_world_tile_is_open(6, 0) && sdd_world_tile_is_open(5, 7) && sdd_world_tile_is_open(7, 7));
+    /* Layout selection: round n for 1..15, then 12..15 repeating */
+    assert(sdd_world_layout_index(1u) == 0u && sdd_world_layout_index(15u) == 14u);
+    assert(sdd_world_layout_index(16u) == 11u && sdd_world_layout_index(19u) == 14u);
+    assert(sdd_world_layout_index(20u) == 11u);
+    /* Strata are 3/4/4/2 rows below the surface lane */
+    assert(sdd_world_stratum_for_y(16 * 3) == 0u && sdd_world_stratum_for_y(16 * 4) == 1u);
+    assert(sdd_world_stratum_for_y(16 * 11) == 2u && sdd_world_stratum_for_y(16 * 12) == 3u);
     assert(g_world.tile_mask[0][0] == 0x00u); /* Surface row open */
     assert(g_world.tile_mask[1][0] == 0x0Fu); /* Undug stratum 0 tile solid */
 
@@ -36,6 +54,22 @@ int main(void) {
         dig_pts += sdd_player_step(INPUT_DOWN, 0u);
     }
     assert(dig_pts >= 20u);
+    /* The first 2 px are still inside the chamber (walk rate); after that
+     * digging advances one 2-pixel step every 4 ticks (rate $40): 14 px in 24 ticks. */
+    assert((g_player.y_fp >> FP_SHIFT) == PLAYER_SPAWN_PX_Y + 14);
+
+    /* A round-1 Pooka (rate 124, updated every other frame) covers 2 * 124/256 / 2
+     * px per tick: between 28 and 31 px in 60 ticks while it has tunnel ahead. */
+    {
+        int16_t y0 = g_enemies[0].y_fp;
+        uint32_t none = 0u;
+        g_enemies[0].phase_cooldown = 1000u;
+        for (int t = 0; t < 60; ++t) {
+            sdd_enemies_step(&none);
+        }
+        int16_t moved = (int16_t)((g_enemies[0].y_fp - y0) >> FP_SHIFT);
+        assert(moved >= 28 && moved <= 31);
+    }
 
     /* 3. Verify Pump Kill Stratum + 2x Horizontal Fygar Scoring */
     assert(sdd_score_for_pump_kill(0u, false, true)  == 200u);

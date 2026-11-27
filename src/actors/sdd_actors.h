@@ -81,6 +81,7 @@ typedef struct {
     uint8_t           anim_tick;
     uint8_t           crushing_rock;
     bool              escaping;
+    uint8_t           speed_acc;    /* 8-bit rate accumulator: a borrow is one 2-pixel step */
 } sdd_enemy_t;
 
 typedef enum {

@@ -14,8 +14,14 @@ sdd_score_popup_t  g_popups[MAX_SCORE_POPUPS];
 bool               g_hurry_up = false;
 uint16_t           g_round_ticks = 0u;
 
-#define PLAYER_WALK_SPEED_FP   20   /* 1.25 px/tick in open tunnels */
-#define PLAYER_DIG_SPEED_FP    14   /* 0.875 px/tick while excavating dirt */
+/* 1982 original: the player takes a 2-pixel step each time an 8-bit
+ * accumulator borrows; the rate is $50 in open tunnel and $40 against dirt
+ * (0.625 and 0.5 px per frame). */
+#define PLAYER_WALK_RATE       0x50u
+#define PLAYER_DIG_RATE        0x40u
+#define PLAYER_STEP_FP         (2 * FP_ONE_PX)
+static uint8_t s_move_acc = 0u;
+static uint8_t s_since_carve_px = 255u; /* distance travelled since dirt was last carved */
 #define CORNER_ASSIST_PX        5   /* Auto-align into 16px intersection within 5 px */
 
 void sdd_spawn_score_popup(int16_t px, int16_t py, uint32_t pts) {
@@ -37,6 +43,8 @@ void sdd_spawn_score_popup(int16_t px, int16_t py, uint32_t pts) {
 }
 
 static void reset_player_at_spawn(void) {
+    s_move_acc           = 0u;
+    s_since_carve_px     = 255u;
     g_player.x_fp        = (int16_t)(PLAYER_SPAWN_PX_X * FP_ONE_PX);
     g_player.y_fp        = (int16_t)(PLAYER_SPAWN_PX_Y * FP_ONE_PX);
     g_player.dir         = DIR_RIGHT;
@@ -81,6 +89,7 @@ void sdd_actors_spawn_round(const sdd_round_def_t *def) {
             g_enemies[i].anim_tick      = 0u;
             g_enemies[i].crushing_rock  = 0xFFu;
             g_enemies[i].escaping       = false;
+            g_enemies[i].speed_acc      = 0u;
         }
     }
 
@@ -276,7 +285,17 @@ uint32_t sdd_player_step(uint16_t p_held, uint16_t p_pressed) {
             sdd_world_cell_is_solid((int16_t)((probe_px + 2) >> 3),  (int16_t)((probe_py + 13) >> 3)) ||
             sdd_world_cell_is_solid((int16_t)((probe_px + 13) >> 3), (int16_t)((probe_py + 13) >> 3));
 
-        int16_t step_fp = hits_dirt ? PLAYER_DIG_SPEED_FP : PLAYER_WALK_SPEED_FP;
+        /* A dirt cell is carved as soon as the body overlaps it, so keep the
+         * dig rate until the body has travelled the rest of that 8-px cell;
+         * otherwise half of every cell would be crossed at walking speed. */
+        if (s_since_carve_px < 8u) {
+            hits_dirt = true;
+        }
+
+        uint8_t rate     = hits_dirt ? PLAYER_DIG_RATE : PLAYER_WALK_RATE;
+        uint8_t acc_prev = s_move_acc;
+        s_move_acc       = (uint8_t)(s_move_acc - rate);
+        int16_t step_fp  = (s_move_acc > acc_prev) ? PLAYER_STEP_FP : 0; /* borrow -> step */
         int16_t nx_fp   = g_player.x_fp;
         int16_t ny_fp   = g_player.y_fp;
 
@@ -292,17 +311,24 @@ uint32_t sdd_player_step(uint16_t p_held, uint16_t p_pressed) {
         if (ny_fp > 208 * FP_ONE_PX) ny_fp = 208 * FP_ONE_PX;
 
         if (!blocked_by_supported_rock((int16_t)(nx_fp >> FP_SHIFT), (int16_t)(ny_fp >> FP_SHIFT))) {
-            g_player.dir    = d;
-            g_player.moving = (nx_fp != g_player.x_fp) || (ny_fp != g_player.y_fp);
-            g_player.x_fp   = nx_fp;
-            g_player.y_fp   = ny_fp;
+            /* Moving and digging describe intent, not this tick's sub-step, so
+             * the walk music and sprite do not flicker between 2-pixel steps. */
+            g_player.dir     = d;
+            g_player.moving  = true;
+            g_player.digging = hits_dirt;
+            g_player.x_fp    = nx_fp;
+            g_player.y_fp    = ny_fp;
             ++g_player.anim_tick;
+            if (step_fp != 0 && s_since_carve_px < 250u) {
+                s_since_carve_px = (uint8_t)(s_since_carve_px + 2u);
+            }
 
             uint8_t carved = sdd_world_carve_footprint_16x16(
                 (int16_t)(g_player.x_fp >> FP_SHIFT),
                 (int16_t)(g_player.y_fp >> FP_SHIFT)
             );
             if (carved > 0u) {
+                s_since_carve_px = 0u;
                 g_player.digging = true;
                 pts += (uint32_t)carved * 10u;
                 sdd_audio_play_cue(AUDIO_SFX_DIG);

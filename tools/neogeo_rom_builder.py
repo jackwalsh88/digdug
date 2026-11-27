@@ -27,6 +27,7 @@ C_AND_ASM_SOURCES = [
     "src/platform/neogeo/rt_mem.c",
     "src/audio/sdd_audio.c",
     "src/world/sdd_world.c",
+    "src/data/dd1982_tables.c",
     "src/score/sdd_score.c",
     "src/actors/sdd_player.c",
     "src/actors/sdd_rocks.c",

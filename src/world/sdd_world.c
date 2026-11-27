@@ -35,15 +35,15 @@ static void recompute_all_masks(void) {
 uint8_t sdd_world_stratum_for_y(int16_t py) {
     if (py < 64)  return 0u;  /* Surface + Dirt Layer 1 (ty = 0..3): 200 / 400 pts */
     if (py < 128) return 1u;  /* Dirt Layer 2 (ty = 4..7):           300 / 600 pts */
-    if (py < 176) return 2u;  /* Dirt Layer 3 (ty = 8..10):          400 / 800 pts */
-    return 3u;                /* Dirt Layer 4 (ty = 11..13):         500 / 1000 pts */
+    if (py < 192) return 2u;  /* Dirt Layer 3 (ty = 8..11):          400 / 800 pts */
+    return 3u;                /* Dirt Layer 4 (ty = 12..13):         500 / 1000 pts */
 }
 
 uint8_t sdd_world_palette_for_tile_row(uint8_t ty) {
     if (ty == 0u) return PAL_DD1982_SURFACE;
     if (ty <= 3u) return PAL_DD1982_STRATUM_0;
     if (ty <= 7u) return PAL_DD1982_STRATUM_1;
-    if (ty <= 10u) return PAL_DD1982_STRATUM_2;
+    if (ty <= 11u) return PAL_DD1982_STRATUM_2;
     return PAL_DD1982_STRATUM_3;
 }
 
@@ -106,123 +106,28 @@ void sdd_world_carve_tile_box(uint8_t tx, uint8_t ty, uint8_t w_tiles, uint8_t h
     }
 }
 
-/*
- * Curated 1982 Round Templates (adapted cleanly to 14x14 tiles, preserving:
- *   - Central vertical shaft from surface row 0 down to player start chamber (tx=6, ty=0..7)
- *   - Horizontal center chamber (tx=5..7, ty=7)
- *   - Authentic Pooka + Fygar counts scaling from 4 monsters on Round 1 up to 8 monsters on Round 12+
- *   - 3 to 5 rocks positioned directly above enemy pockets for classic multi-crush setups!
- *   - Safe wrap after Round 255 without 1982's Round-256 Pooka-on-spawn softlock)
- */
-static const sdd_round_def_t k_base_rounds[8] = {
-    /* Round 1: 4 monsters (3 Pooka, 1 Fygar), 3 rocks */
-    {
-        4u, 3u,
-        {
-            { 2u,  3u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 9u,  2u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 2u, 10u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u, 11u, ENEMY_KIND_POOKA, 0u, 3u },
-        },
-        { { 3u, 2u }, { 10u, 5u }, { 4u, 8u } }
-    },
-    /* Round 2: 5 monsters (3 Pooka, 2 Fygar), 4 rocks */
-    {
-        5u, 4u,
-        {
-            { 1u,  3u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 10u, 3u, ENEMY_KIND_FYGAR, 1u, 3u },
-            { 2u,  8u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 9u,  9u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 5u, 12u, ENEMY_KIND_POOKA, 0u, 3u },
-        },
-        { { 2u, 2u }, { 11u, 2u }, { 4u, 5u }, { 9u, 7u } }
-    },
-    /* Round 3: 6 monsters (4 Pooka, 2 Fygar), 4 rocks */
-    {
-        6u, 4u,
-        {
-            { 1u,  2u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 9u,  2u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 2u,  6u, ENEMY_KIND_FYGAR, 1u, 3u },
-            { 10u, 6u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 1u, 11u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u, 11u, ENEMY_KIND_POOKA, 0u, 3u },
-        },
-        { { 3u, 1u }, { 8u, 4u }, { 3u, 9u }, { 10u, 9u } }
-    },
-    /* Round 4: 6 monsters (3 Pooka, 3 Fygar), 4 rocks */
-    {
-        6u, 4u,
-        {
-            { 2u,  3u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u,  3u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 1u,  7u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 11u, 7u, ENEMY_KIND_FYGAR, 1u, 3u },
-            { 2u, 12u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 8u, 12u, ENEMY_KIND_POOKA, 0u, 3u },
-        },
-        { { 2u, 1u }, { 10u, 1u }, { 4u, 5u }, { 9u, 9u } }
-    },
-    /* Round 5: 7 monsters (4 Pooka, 3 Fygar), 4 rocks */
-    {
-        7u, 4u,
-        {
-            { 1u,  2u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 9u,  2u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 2u,  5u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 11u, 5u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 1u, 10u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u, 10u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 5u, 12u, ENEMY_KIND_POOKA, 0u, 3u },
-        },
-        { { 3u, 1u }, { 10u, 4u }, { 3u, 8u }, { 8u, 8u } }
-    },
-    /* Round 6: 7 monsters (3 Pooka, 4 Fygar), 5 rocks */
-    {
-        7u, 5u,
-        {
-            { 1u,  3u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u,  3u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 1u,  7u, ENEMY_KIND_FYGAR, 1u, 3u },
-            { 11u, 6u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 2u, 11u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u, 11u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 5u, 12u, ENEMY_KIND_POOKA, 0u, 3u },
-        },
-        { { 2u, 1u }, { 10u, 1u }, { 4u, 4u }, { 3u, 9u }, { 10u, 9u } }
-    },
-    /* Round 7: 8 monsters (4 Pooka, 4 Fygar), 5 rocks */
-    {
-        8u, 5u,
-        {
-            { 1u,  2u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 9u,  2u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 1u,  5u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 12u, 5u, ENEMY_KIND_FYGAR, 1u, 3u },
-            { 2u,  9u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u,  9u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 1u, 12u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 9u, 12u, ENEMY_KIND_FYGAR, 0u, 3u },
-        },
-        { { 3u, 1u }, { 10u, 1u }, { 4u, 4u }, { 8u, 5u }, { 5u, 10u } }
-    },
-    /* Round 8+: 8 monsters (4 Pooka, 4 Fygar), 5 rocks */
-    {
-        8u, 5u,
-        {
-            { 1u,  3u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u,  3u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 2u,  6u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 11u, 6u, ENEMY_KIND_POOKA, 1u, 3u },
-            { 1u, 10u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 9u, 10u, ENEMY_KIND_FYGAR, 0u, 3u },
-            { 2u, 12u, ENEMY_KIND_POOKA, 0u, 3u },
-            { 8u, 12u, ENEMY_KIND_POOKA, 0u, 3u },
-        },
-        { { 2u, 1u }, { 10u, 1u }, { 4u, 4u }, { 9u, 5u }, { 5u, 9u } }
-    },
-};
+/* The original picks layout = round for rounds 1..15, then cycles 12..15. */
+uint8_t sdd_world_layout_index(uint16_t round_num) {
+    if (round_num == 0u) {
+        round_num = 1u;
+    }
+    if (round_num >= 16u) {
+        round_num = (uint16_t)((round_num & 3u) + 12u);
+    }
+    return (uint8_t)(round_num - 1u);
+}
+
+/* Speed tables are indexed by the round, clamped at 15. */
+uint8_t sdd_world_round_step(void) {
+    uint16_t r = g_world.round_num;
+    if (r == 0u) {
+        r = 1u;
+    }
+    if (r > DD82_ROUND_STEPS) {
+        r = DD82_ROUND_STEPS;
+    }
+    return (uint8_t)(r - 1u);
+}
 
 void sdd_world_init_round(uint16_t round_num, sdd_round_def_t *out_def) {
     if (round_num == 0u) {
@@ -249,16 +154,15 @@ void sdd_world_init_round(uint16_t round_num, sdd_round_def_t *out_def) {
     sdd_world_carve_tile_box(6u, 0u, 1u, 8u);
     sdd_world_carve_tile_box(5u, 7u, 3u, 1u);
 
-    uint8_t idx = (round_num <= 8u) ? (uint8_t)(round_num - 1u) : (uint8_t)(4u + ((round_num - 9u) & 3u));
-    sdd_round_def_t def = k_base_rounds[idx];
+    sdd_round_def_t def = k_dd82_layouts[sdd_world_layout_index(round_num)];
 
-    /* Carve each monster's initial starter pocket */
-    for (uint8_t i = 0u; i < def.enemy_count; ++i) {
-        const sdd_enemy_spawn_t *es = &def.enemies[i];
-        if (es->tunnel_vertical) {
-            sdd_world_carve_tile_box(es->tx, es->ty, 1u, es->tunnel_len);
+    /* Carve the layout's pre-dug tunnels */
+    for (uint8_t i = 0u; i < def.tunnel_count; ++i) {
+        const sdd_tunnel_span_t *t = &def.tunnels[i];
+        if (t->vertical) {
+            sdd_world_carve_tile_box(t->tx, t->ty, 1u, t->len_tiles);
         } else {
-            sdd_world_carve_tile_box(es->tx, es->ty, es->tunnel_len, 1u);
+            sdd_world_carve_tile_box(t->tx, t->ty, t->len_tiles, 1u);
         }
     }
 

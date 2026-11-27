@@ -5,11 +5,42 @@
 #include "../audio/sdd_audio.h"
 #include "../platform/neogeo/neogeo_hw.h"
 
-#define POOKA_SPEED_FP         18   /* 1.125 px/tick (faster than Fygar) */
-#define POOKA_HURRY_SPEED_FP   22
-#define FYGAR_SPEED_FP         16   /* 1.000 px/tick */
-#define FYGAR_HURRY_SPEED_FP   20
-#define GHOST_SPEED_FP         11   /* 0.6875 px/tick straight through dirt */
+/* Movement follows the 1982 original: Pookas and Fygars are updated on
+ * alternate frames; on its frame a monster subtracts its speed from an 8-bit
+ * accumulator and takes one 2-pixel step when that borrows. Speeds come from
+ * the ROM tables (k_dd82_speed_*), indexed by round step and tier. */
+#define ENEMY_STEP_FP          (2 * FP_ONE_PX)
+#define GHOST_STEP_FP          (1 * FP_ONE_PX)  /* estimate: ghost drift is half a tunnel step */
+static uint8_t s_frame_phase = 0u;
+
+static uint8_t enemy_speed(const sdd_enemy_t *e, bool on_surface) {
+    uint8_t step  = sdd_world_round_step();
+    bool    fygar = (e->kind == ENEMY_KIND_FYGAR);
+    uint16_t spd;
+    if (on_surface) {
+        spd = (uint16_t)(k_dd82_speed_surface[step] + (fygar ? 10u : 0u));
+    } else {
+        /* Tier mapping is this port's reading of the original's two state
+         * flags: fast for the last monster fleeing, mid during hurry-up. */
+        uint8_t tier = e->escaping ? DD82_TIER_FAST : (g_hurry_up ? DD82_TIER_MID : DD82_TIER_NORMAL);
+        spd = k_dd82_speed_tier[(fygar ? 3u : 0u) + tier][step];
+    }
+    if (e->dir == DIR_DOWN && step >= 3u) {
+        spd = (uint16_t)(spd + k_dd82_speed_down_bonus);
+    }
+    return (spd > 255u) ? 255u : (uint8_t)spd;
+}
+
+/* Returns true when this monster takes a step on this frame. */
+static bool enemy_step_due(sdd_enemy_t *e, bool on_surface) {
+    bool my_frame = ((s_frame_phase & 1u) == ((e->kind == ENEMY_KIND_FYGAR) ? 1u : 0u));
+    if (!my_frame) {
+        return false;
+    }
+    uint8_t prev = e->speed_acc;
+    e->speed_acc = (uint8_t)(e->speed_acc - enemy_speed(e, on_surface));
+    return e->speed_acc > prev;
+}
 
 #define FYGAR_INHALE_TICKS     24u
 #define FYGAR_FIRE_TICKS       24u
@@ -80,6 +111,7 @@ static void hurt_player_if_vulnerable(void) {
 
 void sdd_enemies_step(uint32_t *io_awarded_pts) {
     (void)io_awarded_pts;
+    ++s_frame_phase;
     uint8_t alive = sdd_actors_alive_enemy_count();
     if ((alive == 1u || g_round_ticks >= 1800u) && !g_hurry_up) {
         g_hurry_up = true;
@@ -193,10 +225,12 @@ void sdd_enemies_step(uint32_t *io_awarded_pts) {
             ++e->state_timer;
             int16_t dx = (int16_t)(target_x - ex);
             int16_t dy = (int16_t)(target_y - ey);
-            if (dx > 0) { e->x_fp = (int16_t)(e->x_fp + GHOST_SPEED_FP); e->horiz_facing = DIR_RIGHT; e->dir = DIR_RIGHT; }
-            if (dx < 0) { e->x_fp = (int16_t)(e->x_fp - GHOST_SPEED_FP); e->horiz_facing = DIR_LEFT;  e->dir = DIR_LEFT;  }
-            if (dy > 0) { e->y_fp = (int16_t)(e->y_fp + GHOST_SPEED_FP); }
-            if (dy < 0) { e->y_fp = (int16_t)(e->y_fp - GHOST_SPEED_FP); }
+            if (enemy_step_due(e, false)) {
+                if (dx > 0) { e->x_fp = (int16_t)(e->x_fp + GHOST_STEP_FP); e->horiz_facing = DIR_RIGHT; e->dir = DIR_RIGHT; }
+                if (dx < 0) { e->x_fp = (int16_t)(e->x_fp - GHOST_STEP_FP); e->horiz_facing = DIR_LEFT;  e->dir = DIR_LEFT;  }
+                if (dy > 0) { e->y_fp = (int16_t)(e->y_fp + GHOST_STEP_FP); }
+                if (dy < 0) { e->y_fp = (int16_t)(e->y_fp - GHOST_STEP_FP); }
+            }
 
             ex = (int16_t)(e->x_fp >> FP_SHIFT);
             ey = (int16_t)(e->y_fp >> FP_SHIFT);
@@ -214,9 +248,7 @@ void sdd_enemies_step(uint32_t *io_awarded_pts) {
             }
         } else {
             /* 5. Normal Tunnel Chase State */
-            int16_t speed_fp = (e->kind == ENEMY_KIND_POOKA)
-                ? (g_hurry_up ? POOKA_HURRY_SPEED_FP : POOKA_SPEED_FP)
-                : (g_hurry_up ? FYGAR_HURRY_SPEED_FP : FYGAR_SPEED_FP);
+            int16_t speed_fp = enemy_step_due(e, ey == 0) ? ENEMY_STEP_FP : 0;
 
             /* Check Fygar fire trigger when horizontally aligned & cooldown expired */
             if (e->kind == ENEMY_KIND_FYGAR && !e->escaping) {

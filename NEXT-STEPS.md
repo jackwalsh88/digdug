@@ -19,7 +19,7 @@ make test && make smoke SCENARIO=play
 ## Next concrete tasks, in order
 
 1. **Owner play-test** of `mame/roms/superdigdug.zip` (interactive `make run`), ideally also under a real MVS BIOS, and feedback on feel.
-2. **Fidelity pass against the 1982 original.** `tools/disasm_digdug1982.py` needs the original ROM set (`digdug.zip`, git-ignored), which is not in this repository or the Drive folder. Extract speeds, pump cadence, rock delays, AI/ghost timings and round layouts and replace the current estimated values; the 14×14 tile adaptation of the 14×18 original needs an explicit mapping decision.
+2. **Fidelity pass against the 1982 original — in progress.** Done from the ROM (`digdug.zip`, Drive folder `digdug`, git-ignored): the 15 round layouts, layout selection, strata, player and monster speed model (`docs/Dig-Dug-1982-Replica-Spec.md` Appendix A). Remaining: pump and harpoon timing, deflation, rock wobble/fall, Fygar fire, ghost behaviour, hurry-up, the speed-tier flags. These are best measured on the running original; MAME's `digdug` driver additionally needs `namco51.zip` and `namco53.zip` (device ROMs `51xx.bin`, `53xx.bin`). Without them, continue by static analysis of `build/disasm_1982/`.
 3. **Finish M0/M1 evidence:** P2 inputs and 2P start in MAME; hard reset; high-score table in the backup-RAM block; stack watermark; target-side worst-case strip count instead of the pipeline estimate.
 4. **Presentation polish for Phase 1:** title layout (logo is 256 px wide on a 224 px playfield), round-flower and lives icons, death/pop animation frames, art-viewer tick cost.
 5. **Phase 2, milestone M2:** #01 Mecha-Pooka (extra inflation stage), #22 Turbo Hose, first #48 warning poses; then M3 (#11 Air Cannon, #17 Dig Bomb, #40 Technique Bonus, equipment select).
@@ -27,4 +27,5 @@ make test && make smoke SCENARIO=play
 ## Open decisions for the owner
 
 - Whether to commit the ~7 MB asset subset (atlases, JSON, WAVs) to the repository so builds do not depend on Drive.
-- Which original ROM revision to use as the fidelity reference, and how to provide it.
+- Provide `namco51.zip` and `namco53.zip` so the original can be run in MAME for timing measurements (optional; static analysis is the fallback).
+- Confirm the vertical adaptation in D-22 (keep original rows 3..15) or choose the alternative.

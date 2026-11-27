@@ -126,6 +126,7 @@ def cmd_test(_args: argparse.Namespace) -> int:
             "src/platform/neogeo/neogeo_platform.c",
             "src/audio/sdd_audio.c",
             "src/world/sdd_world.c",
+            "src/data/dd1982_tables.c",
             "src/score/sdd_score.c",
             "src/actors/sdd_player.c",
             "src/actors/sdd_rocks.c",

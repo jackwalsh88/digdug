@@ -5,7 +5,9 @@
  *   - 14x14 visual 16x16 tiles (tx=0..13, ty=0..13)
  *   - 28x28 logical 8x8 dirt cells (cx=0..27, cy=0..27)
  *   - Row ty=0 (cy=0..1): Open sky / surface escape lane (top-left exit at x=0, y=0)
- *   - Rows ty=1..13: 4 depth strata [3, 4, 3, 3]
+ *   - Rows ty=1..13: 4 depth strata [3, 4, 4, 2]. The 1982 original has 15 dirt
+ *     rows (4/4/4/3); its round layouts never use the top two or the bottom
+ *     one, so this field keeps original rows 3..15 (port row = original - 2).
  */
 #ifndef SDD_WORLD_H
 #define SDD_WORLD_H
@@ -44,9 +46,8 @@ typedef struct {
 typedef struct {
     uint8_t tx;
     uint8_t ty;
-    uint8_t kind;        /* sdd_enemy_kind_t */
-    uint8_t tunnel_vertical;
-    uint8_t tunnel_len;
+    uint8_t kind;            /* sdd_enemy_kind_t */
+    uint8_t tunnel_vertical; /* starts inside a vertical tunnel */
 } sdd_enemy_spawn_t;
 
 typedef struct {
@@ -54,12 +55,26 @@ typedef struct {
     uint8_t ty;
 } sdd_rock_spawn_t;
 
+/* One round layout: pre-dug tunnels, then monsters (Pookas first) and rocks. */
 typedef struct {
+    uint8_t           tunnel_count;
     uint8_t           enemy_count;
     uint8_t           rock_count;
+    sdd_tunnel_span_t tunnels[6];
     sdd_enemy_spawn_t enemies[8];
     sdd_rock_spawn_t  rocks[5];
 } sdd_round_def_t;
+
+/* Tables of the 1982 original (src/data/dd1982_tables.c, generated from the ROM) */
+#define DD82_LAYOUT_COUNT  15
+#define DD82_ROUND_STEPS   15
+#define DD82_TIER_NORMAL   0u
+#define DD82_TIER_MID      1u
+#define DD82_TIER_FAST     2u
+extern const sdd_round_def_t k_dd82_layouts[DD82_LAYOUT_COUNT];
+extern const uint8_t         k_dd82_speed_surface[DD82_ROUND_STEPS];
+extern const uint8_t         k_dd82_speed_tier[6][DD82_ROUND_STEPS];
+extern const uint8_t         k_dd82_speed_down_bonus;
 
 typedef struct {
     /* 1 = solid dirt, 0 = excavated open space */
@@ -76,6 +91,8 @@ typedef struct {
 extern sdd_world_t g_world;
 
 void    sdd_world_init_round(uint16_t round_num, sdd_round_def_t *out_def);
+uint8_t sdd_world_layout_index(uint16_t round_num); /* 0-based index into k_dd82_layouts */
+uint8_t sdd_world_round_step(void);                 /* 0..DD82_ROUND_STEPS-1 for the current round */
 uint8_t sdd_world_stratum_for_y(int16_t py);
 uint8_t sdd_world_palette_for_tile_row(uint8_t ty);
 

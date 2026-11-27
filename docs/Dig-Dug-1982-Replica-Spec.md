@@ -123,3 +123,32 @@ Spawns at the central player start chamber after **2 rocks** have fallen in the 
 - **Cabinet Defaults & Round 256 Policy:**
   - Default `3` starting lives; extra lives at `20,000` and `60,000` pts; alternating 1P/2P support in Phase 1 replica (expanding to simultaneous `#45` Co-op Rescue in Phase 2 M8).
   - Round counter wraps cleanly after Round 255 to loop high-round layouts without triggering the 1982 Round-0 Pooka-on-player softlock bug (toggleable in debug/classic flags if desired).
+
+---
+
+## Appendix A — Values read from the rev 2 ROM set (2026-11-27)
+
+Source: the owner's `digdug.zip` (Namco rev 2: `dd1a.1`–`dd1a.6`, `dd1.7`, …), disassembled with `tools/disasm_digdug1982.py` and decoded by `tools/extract_dd1982_tables.py`. Routine names and RAM addresses were cross-checked against the MIT-licensed `Suspence00/digdug-decomp` translation (commit `447efad`); every value below was read from the ROM image itself. Nothing here was measured on a running original: MAME's `digdug` driver also needs the Namco 51XX/53XX controller ROMs, which are not in the set.
+
+### A.1 Field geometry
+- Display is 224×288; cells are 16 px. Rows 0–1 are HUD, the surface lane sits at y = 24, dirt rows are 2..16 (15 rows) in strata of 4/4/4/3 rows (playfield map `dd1.10b`).
+- The entry shaft is column 6, rows 2..8; the start chamber is columns 5..7 of row 9 (tile-RAM stamps at `$8202/$8222` and `$81D0`).
+- Position bytes in the layout tables: low nibble = column + 1, high nibble = row − 1.
+
+### A.2 Round layouts
+- 15 layouts at main-CPU `$3168` (tunnels), `$3258` (monsters), `$30F0` (rocks). Round n uses layout n for n ≤ 15, then `(n & 3) + 12`.
+- Each layout has up to 4 vertical and 4 horizontal tunnels. They are 3 cells long, except in round 1: 5 cells vertical, 4 horizontal.
+- Monster slots 0–3 are Pookas, 4–7 Fygars; several monsters may share a start cell. Rocks: 3 to 5.
+- Decoding check: all 101 monster starts lie inside tunnels and no rock does.
+- The layouts use rows 4..15 only, so the port keeps original rows 3..15 as its 13 dirt rows: **port row = original row − 2**, strata 3/4/4/2, chamber at tile (5..7, 7).
+
+### A.3 Speeds
+- Player (sub CPU `$10D8`–`$111B`): once per frame an 8-bit accumulator is reduced by `$50` in open tunnel or `$40` when the leading edge touches dirt; each borrow is one 2-pixel step. That is 0.625 and 0.5 px per frame.
+- Monsters (main CPU `$1F00`, `$294A`): slots 0–3 and 4–7 are updated on alternate frames; on its frame a monster subtracts its speed from an accumulator and takes one 2-pixel step on borrow, so the rate is speed/256 px per frame.
+- Speed source (sub CPU `$1B9F`): tables at `$1C3E` indexed by DIP difficulty bank and round (clamped at 15): three tiers each for Pooka and Fygar; on the surface lane the `$1BFE` table is used (+10 for Fygar). Heading down from round 4 adds `$32EE` = 30.
+- Bank 0, round 1: Pooka 124 (0.48 px/frame), Fygar 133 (0.52); round 15: 168 and 176. Fast tier: 172–223 and 183–234.
+- Fygar is the faster of the two in every tier.
+
+### A.4 Still estimated in the port
+Pump cadence and harpoon speed, deflation delay, rock wobble and fall rate, Fygar fire timing and probability (table at `$32D0` not yet applied), ghost timing and ghost drift speed, the meaning of the two flags that select the mid and fast speed tiers, hurry-up timing, and the DIP difficulty bank the cabinet ships with (bank 0 is used).
+

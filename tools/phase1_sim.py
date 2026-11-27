@@ -24,7 +24,7 @@ def stratum_for_y(py: int) -> int:
         return 0
     if py < 128:
         return 1
-    if py < 176:
+    if py < 192:
         return 2
     return 3
 
